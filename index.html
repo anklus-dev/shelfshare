@@ -146,6 +146,17 @@ select.ri{border-radius:12px;width:100%;margin-top:6px}
 .spin{width:30px;height:30px;border:3px solid var(--line,#d9c7a8);border-top-color:var(--acc);border-radius:50%;margin:0 auto 10px;animation:spn .8s linear infinite}
 @keyframes spn{to{transform:rotate(360deg)}}
 @media (prefers-reduced-motion:reduce){.view.go .bar,.spin{animation-duration:3s}}
+.reqc .bkico{flex:none;width:30px;height:38px;margin-left:auto;margin-right:30px;filter:drop-shadow(0 2px 3px rgba(60,30,10,.3));animation:bkf 3s ease-in-out infinite}
+@keyframes bkf{50%{transform:translateY(-2px) rotate(-3deg)}}
+.reqc.taking{opacity:.97}
+.owl{position:absolute;z-index:60;width:120px;height:90px;pointer-events:none;will-change:transform;filter:drop-shadow(0 6px 6px rgba(40,25,15,.3))}
+.owl svg{display:block;overflow:visible}
+.owl .wl,.owl .wr{transform-box:fill-box;animation:flapL .26s ease-in-out infinite alternate}
+.owl .wl{transform-origin:100% 55%}.owl .wr{transform-origin:0% 55%;animation-name:flapR}
+.owl.hover .wl,.owl.hover .wr{animation-duration:.14s}
+@keyframes flapL{from{transform:rotate(-24deg) scaleY(1)}to{transform:rotate(22deg) scaleY(.82)}}
+@keyframes flapR{from{transform:rotate(24deg) scaleY(1)}to{transform:rotate(-22deg) scaleY(.82)}}
+@media (prefers-reduced-motion:reduce){.reqc .bkico{animation:none}}
 </style></head><body>
 <div id="app"><header id="bar"></header><main id="screen"></main><nav class="tabs" id="tabs"></nav></div>
 <script>
@@ -308,7 +319,8 @@ function req(id,sw){const b=near.find(x=>x.id===id);if(!b)return;realReq(b,sw?sw
 function realReq(b,offer){const id='r'+uid(),rec={id,bookId:b.id,t:b.t,a:b.a,c:b.c,from:me.id,fromName:me.name,to:b.uid,toName:b.o,status:'pending',ts:Date.now()};
  if(offer)rec.offer={id:offer.id,t:offer.t,a:offer.a,c:offer.c};
  dbSet('requests/'+id,rec);if(seen)seen[id]='pending';asec='share';go('a');toast(offer?'Swap proposed to '+b.o:'Request sent to '+b.o)}
-function apR(id,ok){const r=(DB.requests||{})[id];if(!r)return;const now=Date.now();
+async function apR(id,ok){if(owlBusy)return;if(ok)await owlTake(id);return apDo(id,ok)}
+function apDo(id,ok){const r=(DB.requests||{})[id];if(!r)return;const now=Date.now();
  dbSet('requests/'+id,{...r,status:ok?'approved':'declined',appTs:now});
  if(ok&&r.offer){const id2='r'+uid();dbSet('requests/'+id2,{id:id2,bookId:r.offer.id,t:r.offer.t,a:r.offer.a,c:r.offer.c,from:r.to,fromName:r.toName,to:r.from,toName:r.fromName,status:'approved',ts:now,appTs:now,swapOf:id})}
  rebuild();draw();toast(ok?(r.offer?`Swap confirmed with ${r.fromName}`:`${r.fromName} has been told. ${r.t} is marked as lent`):'Request declined')}
@@ -380,7 +392,7 @@ function activity(){
  if(asec==='th'){
   const h=items.length?items.map(i=>`<div class="card"><div class="item"><div style="flex:1"><b style="font-weight:500">${esc(i.text)}</b></div>${i.fresh?'<span class="st ok">New</span>':''}</div>${i.prev?`<p class="q" style="font-size:14px">“${esc(i.prev)}”</p>`:''}<button class="btn ghost" onclick="seeT('${i.tid}',${i.kind==='rp'})">${i.kind==='rp'?'See reply':'See thought'}</button></div>`).join(''):`<div class="card empty"><b class="serif" style="font-size:18px">Nothing yet</b><p>When a neighbor shares a thought on a book you lent, or replies to one of yours, it shows up here.</p></div>`;
   if(tseen){items.forEach(i=>tseen.add(i.key));saveTSeen()}return head+h}
- const rq=pend.map(r=>{const su=U[r.from]||{};return `<div class="reqc"><div class="ph"><div class="pa" style="--c:${esc(r.c||'#6B4226')}">${esc((r.fromName||'?')[0])}</div><div><b>${esc(r.fromName)} wants to borrow</b><small>${esc(su.unit||(su.loc&&su.loc.city)||'Nearby')} · ${esc(fmtD(dist(myLoc(),su.loc)))}</small></div><span class="tag" style="background:var(--acc);color:var(--accink)">${r.offer?'Swap offer':'New request'}</span></div><div class="item">${cv(r)}<div><b class="serif" style="font-size:18px">${esc(r.t)}</b><small>${esc(r.a||'')}</small>${r.offer?`<small>Offers ${esc(r.offer.t)} in exchange</small>`:'<small>Usually lent for two weeks</small>'}</div></div><div class="two"><button class="btn acc" onclick="apR('${r.id}',1)">Approve</button><button class="btn ghost" onclick="apR('${r.id}',0)">Decline</button></div></div>`}).join('');
+ const rq=pend.map(r=>{const su=U[r.from]||{};return `<div class="reqc" id="rq-${esc(r.id)}"><div class="ph"><div class="pa" style="--c:${esc(r.c||'#6B4226')}">${esc((r.fromName||'?')[0])}</div><div><b>${esc(r.fromName)} wants to borrow</b><small>${esc(su.unit||(su.loc&&su.loc.city)||'Nearby')} · ${esc(fmtD(dist(myLoc(),su.loc)))}</small></div><span class="tag" style="background:var(--acc);color:var(--accink)">${r.offer?'Swap offer':'New request'}</span></div><div class="item">${cv(r)}<div><b class="serif" style="font-size:18px">${esc(r.t)}</b><small>${esc(r.a||'')}</small>${r.offer?`<small>Offers ${esc(r.offer.t)} in exchange</small>`:'<small>Usually lent for two weeks</small>'}</div>${bookIco()}</div><div class="two"><button class="btn acc" onclick="apR('${r.id}',1)">Approve</button><button class="btn ghost" onclick="apR('${r.id}',0)">Decline</button></div></div>`}).join('');
  const ot=outs.map(r=>`<div class="card"><div class="item"><div style="flex:1"><b style="font-weight:500">${esc(r.swapOf?`Swap: you’re borrowing ${r.t} from ${r.toName}`:r.offer?`Swap proposed: ${r.offer.t} for ${r.t}`:`You asked ${r.toName} to borrow ${r.t}`)}</b></div><span class="st ${r.status==='approved'?'ok':''}">${STL[r.status]||esc(r.status)}</span></div></div>`).join('');
  const bo=loans.map(r=>{const d=daysLeft(r);return `<div class="card"><div class="item">${cv(r)}<div><b>${esc(r.t)}</b><small>From ${esc(r.toName)}</small><div class="bar2 ${d<=3?'lo':''}"><i style="width:${Math.min(100,d/(14+(r.ext||0))*100)}%"></i></div><small><b>${dl(d)} left</b>${d<=3?' · due soon':''}</small></div></div><div class="two" style="margin-top:8px"><button class="chip" onclick="extendR('${r.id}')">Extend by a week</button><button class="chip ${isRead(r.t)?'on':''}" onclick="readL('${r.id}')">${isRead(r.t)?'Read ✓':'Finished reading'}</button></div></div>`}).join('');
  const lo=lent.map(b=>`<div class="card item">${cv(b)}<div><b>${esc(b.t)}</b><small>With ${esc(b.lent)}</small><span class="tag">Returns in ${dl(b.due||7)}</span>${b.rid?`<button class="chip" style="margin-left:6px" onclick="retR('${b.rid}')">Mark returned</button>`:''}</div></div>`).join('');
@@ -550,6 +562,49 @@ async function resolveCovers(){if(covBusy||!me||document.hidden)return;
  try{for(const b of todo){covTried.add(key(b.t));const u=await findCover(b);if(u&&COVER_OK.test(u)){COV[key(b.t)]=u;dbSet('covers/'+key(b.t),u);if(tab!=='s'&&!document.querySelector('.scrim,.scrim2')&&!(document.activeElement&&/INPUT|TEXTAREA/.test(document.activeElement.tagName)))draw()}await sleep(1100)}}
  finally{covBusy=0}}
 
+/* ---------- the wise owl: flies in, takes the book, flies off when you approve a request ---------- */
+const BOOK_ICO=(c1,c2)=>`<svg viewBox="0 0 32 40" width="100%" height="100%" aria-hidden="true"><rect x="3" y="2" width="26" height="34" rx="3.5" fill="${c1}"/><rect x="3" y="2" width="6" height="34" rx="3" fill="${c2}"/><rect x="11" y="9" width="14" height="2.6" rx="1.3" fill="#F2E9DC" opacity=".85"/><rect x="11" y="14" width="10" height="2.2" rx="1.1" fill="#F2E9DC" opacity=".55"/><path d="M5 34.5h22a2.5 2.5 0 0 1-2.5 3H7.5A2.5 2.5 0 0 1 5 34.5z" fill="#F2E9DC"/><path d="M22 2v10l2.6-2 2.6 2V2z" fill="#D9923F"/></svg>`;
+const bookIco=()=>`<span class="bkico" aria-hidden="true">${BOOK_ICO('#6B4226','#4A2C18')}</span>`;
+const OWL_SVG=`<svg viewBox="0 0 160 120" width="120" height="90" aria-hidden="true">
+<g class="wl"><path d="M62 46C44 30 22 28 3 36c6 4 8 8 6 13 6-1 9 1 10 6 6-2 10 0 12 5 6-3 11-2 14 3 5-4 10-3 14 1z" fill="#8A9099"/><path d="M12 44c14-4 28-2 44 8M16 54c12-3 24 0 38 8" stroke="#6C727B" stroke-width="2" fill="none" stroke-linecap="round"/></g>
+<g class="wr"><path d="M98 46c18-16 40-18 59-10-6 4-8 8-6 13-6-1-9 1-10 6-6-2-10 0-12 5-6-3-11-2-14 3-5-4-10-3-14 1z" fill="#8A9099"/><path d="M148 44c-14-4-28-2-44 8M144 54c-12-3-24 0-38 8" stroke="#6C727B" stroke-width="2" fill="none" stroke-linecap="round"/></g>
+<ellipse cx="80" cy="76" rx="25" ry="33" fill="#9AA1AA"/>
+<ellipse cx="80" cy="82" rx="16" ry="25" fill="#D3D6DB"/>
+<path d="M70 70q4 4 8 0M82 70q4 4 8 0M72 80q4 4 8 0M80 80q4 4 8 0M70 90q4 4 8 0M82 90q4 4 8 0M76 99q4 4 8 0" stroke="#9AA1AA" stroke-width="1.6" fill="none" stroke-linecap="round"/>
+<path d="M58 30l6 12 8-8zM102 30l-6 12-8-8z" fill="#7C838C"/>
+<circle cx="80" cy="46" r="26" fill="#9AA1AA"/>
+<circle cx="69" cy="48" r="14" fill="#DADDE1"/><circle cx="91" cy="48" r="14" fill="#DADDE1"/>
+<circle cx="69" cy="48" r="8" fill="#E6B54F"/><circle cx="91" cy="48" r="8" fill="#E6B54F"/>
+<circle cx="69.5" cy="49.5" r="4" fill="#2B1D14"/><circle cx="90.5" cy="49.5" r="4" fill="#2B1D14"/>
+<circle cx="71" cy="48" r="1.3" fill="#fff"/><circle cx="92" cy="48" r="1.3" fill="#fff"/>
+<path d="M59.5 46a9.5 7.5 0 0 1 19 0z" fill="#8A9099"/><path d="M81.5 46a9.5 7.5 0 0 1 19 0z" fill="#8A9099"/>
+<path d="M52 41c6-8 16-9 26-5-8 0-14 2-20 8zM108 41c-6-8-16-9-26-5 8 0 14 2 20 8z" fill="#EEF0F2"/>
+<path d="M56 38c6-5 13-6 20-3M104 38c-6-5-13-6-20-3" stroke="#B8BDC4" stroke-width="1.4" fill="none" stroke-linecap="round"/>
+<path d="M60 52a9.5 9.5 0 0 0 18 0M82 52a9.5 9.5 0 0 0 18 0M78 50h4" stroke="#5B4636" stroke-width="1.6" fill="none" stroke-linecap="round"/>
+<path d="M76 55h8l-4 9z" fill="#CC8B3A"/>
+<path d="M68 64q12 8 24 0" stroke="#EEF0F2" stroke-width="3" fill="none" stroke-linecap="round" opacity=".9"/>
+<path d="M72 108l-4 7M78 109l-1 8M88 109l1 8M94 108l4 7" stroke="#CC8B3A" stroke-width="2.4" stroke-linecap="round"/>
+<g class="carry" opacity="0" transform="translate(70 60) rotate(-8 10 12)"><g transform="scale(.62)">${BOOK_ICO('#6B4226','#4A2C18').replace('width="100%" height="100%"','width="32" height="40"')}</g></g></svg>`;
+let owlBusy=0;
+function owlTake(id){return new Promise(res=>{
+ const card=$('rq-'+id),ico=card&&card.querySelector('.bkico'),app=$('app');
+ if(!card||!ico||!app||!ico.animate||(window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches)){res();return}
+ owlBusy=1;card.classList.add('taking');card.querySelectorAll('button').forEach(b=>b.disabled=true);
+ const ar=app.getBoundingClientRect(),ir=ico.getBoundingClientRect(),W=ar.width,ix=ir.left-ar.left+ir.width/2,iy=ir.top-ar.top+ir.height/2;
+ const o=document.createElement('div');o.className='owl';o.innerHTML=OWL_SVG;o.style.left=(ix-60)+"px";o.style.top=(iy-62)+"px";app.appendChild(o);
+ const T=2400,tr=(x,y,r,s)=>`translate(${x}px,${y}px) rotate(${r}deg) scale(${s})`;
+ const a=o.animate([
+  {transform:tr(W-ix+120,-170,10,.8),opacity:0,offset:0},
+  {transform:tr(W-ix+40,-120,8,.85),opacity:1,offset:.06,easing:'cubic-bezier(.2,.75,.3,1)'},
+  {transform:tr(0,0,0,1),opacity:1,offset:.44},
+  {transform:tr(0,2,0,1),opacity:1,offset:.54,easing:'cubic-bezier(.55,0,.9,.6)'},
+  {transform:tr(-(ix+220),-(iy+200),-14,.75),opacity:1,offset:1}],{duration:T,fill:'forwards'});
+ o.classList.add('fly');
+ setTimeout(()=>{o.classList.add('hover')},T*.34);
+ setTimeout(()=>{const c=o.querySelector('.carry');if(c)c.setAttribute('opacity','1');ico.style.visibility='hidden';o.classList.remove('hover')},T*.47);
+ const done=()=>{o.remove();card.classList.remove('taking');owlBusy=0;res()};
+ a.onfinish=done;a.oncancel=done;setTimeout(()=>{if(o.isConnected)done()},T+600)})}
+
 /* ---------- community: clubs + leaderboard ---------- */
 const msgs=cid=>Object.values((DB.clubmsgs||{})[cid]||{}).sort((a,b)=>a.ts-b.ts);
 const lastMsg=cid=>{const m=msgs(cid);return m[m.length-1]};
@@ -695,7 +750,7 @@ async function sync(force){if(pend||!AU)return;const w0=wver;let d;try{d=scrub(a
  rebuild();notify();resolveCovers();
  const ae=document.activeElement,typing=ae&&/INPUT|TEXTAREA|SELECT/.test(ae.tagName);
  if(tab==='u'&&curClub){drawMsgs();tabs();return}
- if(['d','a','p','u'].includes(tab)&&!document.querySelector('.scrim,.scrim2')&&!typing)draw();else tabs()}
+ if(['d','a','p','u'].includes(tab)&&!document.querySelector('.scrim,.scrim2')&&!typing&&!owlBusy)draw();else tabs()}
 
 /* ---------- shell ---------- */
 const TABS=[['d','Discover'],['f','Feed'],['s','Add'],['u','Community'],['p','Me']];
