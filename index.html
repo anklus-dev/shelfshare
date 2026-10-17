@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>ShelfShare – One Shared Shelf</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,700&family=DM+Sans:wght@400;500;700&display=swap">
+<style>
+:root{--bg:#F2E9DC;--card:#FFFAF2;--ink:#2B1D14;--mut:#7B665A;--line:#E3D3C0;--acc:#D9923F;--accink:#2a1500;--pine:#6B4226;--pinebg:#EBDAC4;--shell:#D6C5B0;--hi:#fff;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#1E1510;--card:#2A1E17;--ink:#F1E6D8;--mut:#B09B89;--line:#40302A;--pinebg:#3D2C20;--shell:#120C08;--pine:#DDAA70;--hi:#4A3527;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#1E1510;--card:#2A1E17;--ink:#F1E6D8;--mut:#B09B89;--line:#40302A;--pinebg:#3D2C20;--shell:#120C08;--pine:#DDAA70;--hi:#4A3527;color-scheme:dark}
+*{box-sizing:border-box;margin:0}html,body{height:100%}
+body{font:15px/1.4 'DM Sans',system-ui,sans-serif;color:var(--ink);background:var(--shell);display:flex;align-items:center;justify-content:center}
+#app{width:100%;height:100%;background:var(--bg);display:flex;flex-direction:column;position:relative;overflow:hidden}
+@media (min-width:520px){#app{width:390px;height:820px;max-height:96vh;border-radius:38px;border:8px solid #1a110c;box-shadow:0 24px 60px rgba(0,0,0,.35)}}
+h1,h2,h3,.serif{font-family:Fraunces,Georgia,serif;font-weight:700}
+#screen{flex:1;min-height:0;position:relative;overflow-y:auto;padding:16px 16px 20px}
+#screen.flush{padding:0;overflow:hidden}
+button{font:inherit;color:inherit;cursor:pointer;border:0;background:none}
+button:focus-visible,textarea:focus-visible,input:focus-visible{outline:2px solid var(--pine);outline-offset:2px}
+.top{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+.top h1{font-size:28px}.tag-l{color:var(--mut);font-size:13px;margin-top:-2px}
+.chip{display:inline-flex;gap:6px;align-items:center;background:var(--card);border:1px solid var(--line);border-radius:99px;padding:6px 12px;font-size:13px;color:var(--mut);white-space:nowrap}
+.chip.on{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.row{display:flex;gap:8px;margin:10px 0 14px;overflow-x:auto}
+.match{width:100%;text-align:left;background:var(--acc);color:var(--accink);border-radius:18px;padding:14px;display:flex;gap:12px;align-items:center;margin:4px 0 8px;animation:pop .5s ease}
+@keyframes pop{from{transform:scale(.96);opacity:0}}
+.match b{font-family:Fraunces,Georgia,serif;font-size:17px;display:block}
+.pair{display:flex}.pair .cover{width:44px;height:62px;font-size:7px;padding:5px}.pair .cover+.cover{margin-left:-14px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.bk{text-align:left}.bk .cover{width:100%;aspect-ratio:2/3}
+.bk p{font-weight:700;margin-top:6px;font-size:14px;line-height:1.25}.bk small{color:var(--mut);display:block}
+.cover{position:relative;overflow:hidden;background:var(--c);color:#fff;border-radius:4px 8px 8px 4px;padding:12px 10px 12px 14px;display:flex;flex-direction:column;justify-content:space-between;box-shadow:inset 5px 0 0 rgba(0,0,0,.18),0 3px 8px rgba(0,0,0,.18);font-family:Fraunces,Georgia,serif;font-size:14px;line-height:1.15;font-weight:700}
+.cover i{font:400 10px 'DM Sans',sans-serif;opacity:.85;font-style:normal}
+.cover>span,.cover>i{position:relative;z-index:1;text-shadow:0 1px 3px rgba(0,0,0,.45)}.art{position:absolute;inset:0;width:100%;height:100%}.cover::after{content:'';position:absolute;left:0;top:0;bottom:0;width:5px;background:rgba(0,0,0,.2);z-index:2}
+.tabs{display:flex;background:var(--card);border-top:1px solid var(--line);padding:6px 6px 10px}
+.tabs button{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;font-size:11px;color:var(--mut);padding:4px;position:relative}
+.tabs button.on{color:var(--pine);font-weight:700}
+.tabs svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.tabs .scan{color:var(--accink)}.tabs .scan span{background:var(--acc);border-radius:16px;width:48px;height:40px;display:grid;place-items:center;margin-top:-14px}
+.dot{position:absolute;top:2px;right:22%;background:#d44;color:#fff;border-radius:99px;font-size:10px;min-width:16px;height:16px;display:grid;place-items:center}
+.btn{display:block;width:100%;padding:13px;border-radius:14px;background:var(--ink);color:var(--bg);font-weight:700;text-align:center;margin-top:10px}
+.btn.acc{background:var(--acc);color:var(--accink)}.btn.ghost{background:var(--card);color:var(--ink);border:1px solid var(--line)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:12px;margin-bottom:10px}
+.item{display:flex;gap:12px;align-items:center}.item .cover{width:46px;height:66px;font-size:7px;padding:5px 4px 5px 8px;flex:none}
+.item>div:nth-child(2){flex:1;min-width:0}.item small{color:var(--mut);display:block}
+.sw{width:46px;height:28px;border-radius:99px;background:var(--line);position:relative;transition:.2s;flex:none}
+.sw::after{content:'';position:absolute;top:3px;left:3px;width:22px;height:22px;border-radius:50%;background:#fff;transition:.2s}
+.sw.on{background:var(--pine)}.sw.on::after{left:21px}
+.seg{display:flex;background:var(--line);border-radius:12px;padding:3px;margin-bottom:14px}.seg button{flex:1;padding:8px;border-radius:10px;font-weight:500;font-size:14px}.seg .on{background:var(--card);font-weight:700}
+.back{color:var(--mut);margin-bottom:10px;font-size:14px}
+.hero{display:flex;gap:16px;margin-bottom:14px}.hero .cover{width:130px;height:190px;flex:none;font-size:16px}
+.tag{display:inline-block;background:var(--pinebg);color:var(--pine);border-radius:99px;padding:3px 10px;font-size:12px;font-weight:700}
+.tag.off{background:var(--line);color:var(--mut)}
+.swap{background:var(--pinebg);border-radius:16px;padding:14px;margin:12px 0}
+.swap .pair{justify-content:center;gap:18px;align-items:center;margin:10px 0}.swap .pair .cover{width:80px;height:116px;font-size:10px;margin:0}
+.view{position:relative;background:#1c130e;border-radius:22px;height:300px;overflow:hidden;display:grid;place-items:center;color:#e9c98f;margin-bottom:12px}
+.view::before{content:'';position:absolute;inset:40px 30px;border:2px dashed rgba(255,255,255,.4);border-radius:12px}
+.bar{position:absolute;left:34px;right:34px;height:3px;background:var(--acc);box-shadow:0 0 14px var(--acc);top:50px;display:none}
+.view.go .bar{display:block;animation:sc 1.4s ease-in-out infinite alternate}
+@keyframes sc{to{top:245px}}
+.view .isbn{position:relative;font:12px/1 monospace;opacity:.8;text-align:center}
+.scrim{position:absolute;inset:0;background:rgba(0,0,0,.4);z-index:8;display:flex;align-items:flex-start;padding:64px 16px}.sheet{background:var(--card);border-radius:20px;padding:18px;width:100%;animation:pop .25s ease}
+.toast{position:absolute;left:16px;right:16px;bottom:84px;background:var(--ink);color:var(--bg);padding:12px 14px;border-radius:14px;font-weight:500;animation:pop .3s ease;z-index:9}
+.st{font-size:12px;font-weight:700;border-radius:99px;padding:3px 10px;background:var(--line);color:var(--mut);white-space:nowrap}.st.ok{background:var(--pinebg);color:var(--pine)}
+.two{display:flex;gap:8px}.two .btn{margin-top:8px}
+/* feed */
+.fh{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px}
+.post{background:var(--card);border:1px solid var(--line);border-radius:22px;padding:14px;margin-bottom:16px;box-shadow:0 6px 18px rgba(0,0,0,.07)}
+.ph{display:flex;align-items:center;gap:10px;margin-bottom:12px}
+.ph>div:nth-child(2){flex:1;min-width:0}.ph small{color:var(--mut);display:block}
+.pa{width:38px;height:38px;border-radius:50%;background:var(--c);color:#fff;display:grid;place-items:center;font:700 16px Fraunces,Georgia,serif;flex:none}
+.stage{display:flex;justify-content:center;padding:22px 0;border-radius:16px;background:color-mix(in srgb,var(--c) 22%,var(--card))}
+.stage .cover{width:112px;height:168px;font-size:12px}
+.pq{font:700 20px/1.3 Fraunces,Georgia,serif;margin:14px 2px 4px;text-align:center}
+.blur .pq{filter:blur(9px);cursor:pointer}.rv{display:none;text-align:center;color:var(--mut);font-size:13px}.blur .rv{display:block}
+.acts{display:flex;gap:4px;margin-top:10px;align-items:center}
+.acts button{display:flex;gap:6px;align-items:center;color:var(--mut);font-size:14px;padding:7px 10px;border-radius:99px}
+.acts svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.acts .lk.on{color:#e0455a}.acts .lk.on svg{fill:#e0455a}
+.acts .bw{margin-left:auto;background:var(--ink);color:var(--bg);font-weight:700}
+.acts .sub{margin-left:auto;flex:1;min-width:0;max-width:215px;gap:8px;background:var(--bg);border:1px solid var(--line);border-radius:14px;padding:6px 8px 6px 6px;text-align:left;color:var(--ink)}
+.sub .pa{width:28px;height:28px;font-size:13px}.sub .tx{flex:1;min-width:0;line-height:1.2}.sub .tx b,.sub .tx small{display:block}.sub .tx b{font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.sub .tx small{font-size:11px;color:var(--mut)}.sub .ch{color:var(--mut);font-size:20px;line-height:1}
+.scrim2{position:absolute;inset:0;background:rgba(0,0,0,.45);z-index:8;display:flex;align-items:flex-end;animation:fade .2s ease}
+.sh{background:var(--card);width:100%;border-radius:24px 24px 0 0;padding:10px 18px 24px;animation:up .28s cubic-bezier(.2,.8,.2,1)}
+.scrim2.out{opacity:0;transition:opacity .22s}.scrim2.out .sh{transform:translateY(100%);transition:transform .22s ease-in}
+@keyframes up{from{transform:translateY(100%)}}@keyframes fade{from{opacity:0}}
+.grab{width:40px;height:4px;border-radius:9px;background:var(--line);margin:0 auto 14px}
+.opt{display:block;width:100%;text-align:left;padding:13px 14px;border:1px solid var(--line);border-radius:14px;margin-top:8px;font-weight:700}.opt small{display:block;color:var(--mut);font-weight:400}.opt.pri{background:var(--acc);color:var(--accink);border-color:var(--acc)}.opt.pri small{color:var(--accink);opacity:.75}
+.reqc{background:var(--hi);border:2px solid var(--acc);border-radius:20px;padding:14px;margin-bottom:12px;box-shadow:0 8px 22px rgba(120,70,20,.2)}
+.reqc .ph{margin-bottom:10px}.reqc .item{margin:2px 0 4px}
+.sec{font:700 16px Fraunces,Georgia,serif;margin:18px 0 8px}
+.nb{background:#d4553a;color:#fff;border-radius:99px;font-size:11px;padding:1px 6px;margin-left:6px}
+.bar2{height:6px;background:var(--line);border-radius:9px;margin:8px 0 4px;overflow:hidden}.bar2 i{display:block;height:100%;background:var(--pine);border-radius:9px}.bar2.lo i{background:#d4553a}
+.pair.big .cover{width:84px;height:120px;font-size:10px;padding:8px 6px 8px 10px}
+/* compose + profile */
+textarea{width:100%;min-height:110px;border:1px solid var(--line);border-radius:14px;padding:12px;font:inherit;background:var(--card);color:var(--ink);resize:none}
+input[type=number]{width:80px;border:1px solid var(--line);border-radius:10px;padding:8px;font:inherit;background:var(--card);color:var(--ink)}
+.lbl{font-weight:700;margin:14px 0 6px;font-size:14px}
+.ava{width:68px;height:68px;border-radius:50%;background:var(--pine);color:#fff;display:grid;place-items:center;font:700 24px Fraunces,Georgia,serif;flex:none}
+.stats{display:flex;justify-content:space-around;text-align:center;margin:14px 0}.stats b{display:block;font:700 20px Fraunces,Georgia,serif}.stats small{color:var(--mut)}
+.q{font:500 15px/1.35 Fraunces,Georgia,serif;margin-top:4px}
+.rp{background:var(--bg);border-radius:12px;padding:8px 12px;margin-top:8px;font-size:14px}.rp b{margin-right:4px}
+.ri{flex:1;min-width:0;border:1px solid var(--line);border-radius:99px;padding:8px 14px;font:inherit;background:var(--card);color:var(--ink)}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
+</style></head><body>
+<div id="app"><main id="screen"></main><nav class="tabs" id="tabs"></nav></div>
+<script>
+const CFG={FIREBASE_URL:''}; // To go live, paste your Firebase Realtime Database URL between the quotes (see README.md)
+const LIVE=!!CFG.FIREBASE_URL,BASE=CFG.FIREBASE_URL.replace(/\/$/,'');
+let DB={},me=null,last='',pend=0,DBok=false,seen=null,fakeLent={},mem={};
+const ls={get(k){try{return localStorage.getItem(k)}catch(e){return mem[k]||null}},set(k,v){try{localStorage.setItem(k,v)}catch(e){mem[k]=v}},del(k){try{localStorage.removeItem(k)}catch(e){delete mem[k]}}};
+const scrub=d=>JSON.parse(JSON.stringify(d||{}),(k,v)=>typeof v==='string'?v.replace(/[<>&"`\\$]/g,''):v);
+const setIn=(o,p,v)=>{const a=p.split('/');let c=o;a.slice(0,-1).forEach(k=>c=c[k]=c[k]||{});if(v===null)delete c[a[a.length-1]];else c[a[a.length-1]]=v};
+async function load(){if(LIVE){const r=await fetch(BASE+'/ss.json');if(!r.ok)throw 0;return (await r.json())||{}}return JSON.parse(ls.get('ss_db')||'{}')||{}}
+async function save(p,v){pend++;try{if(LIVE){await fetch(`${BASE}/ss/${encodeURI(p)}.json`,{method:'PUT',body:JSON.stringify(v)})}else{const d=JSON.parse(ls.get('ss_db')||'{}')||{};setIn(d,p,v);ls.set('ss_db',JSON.stringify(d))}}catch(e){}pend--}
+function dbSet(p,v){setIn(DB,p,v);return save(p,v)}
+const POOL=[{t:'The Odyssey',a:'Homer',c:'#7A4B2A'},{t:'Pride and Prejudice',a:'Jane Austen',c:'#8C4A5A'},{t:'1984',a:'George Orwell',c:'#8A3B2E'},{t:'Frankenstein',a:'Mary Shelley',c:'#4E5B3A'},{t:'The Great Gatsby',a:'F. Scott Fitzgerald',c:'#B07A2A'},{t:'Moby-Dick',a:'Herman Melville',c:'#6A5A44'},{t:'Romeo and Juliet',a:'William Shakespeare',c:'#9A4A3A'},{t:'Alice in Wonderland',a:'Lewis Carroll',c:'#8A5A6A'},{t:'Jane Eyre',a:'Charlotte Brontë',c:'#6A4A3A'},{t:'Dracula',a:'Bram Stoker',c:'#5A2A2A'},{t:'Great Expectations',a:'Charles Dickens',c:'#7A5A3A'},{t:'Little Women',a:'Louisa May Alcott',c:'#9A6A4A'}];
+const auto=t=>{const h=([...t].reduce((a,c)=>(a*31+c.charCodeAt(0))|0,7))>>>0;return ['<circle cx="64" cy="90" r="20" fill="#fff" opacity=".8"/><path d="M0 150V118q50-24 100 0v32z" fill="#00000050"/>','<path d="M18 150V84M38 150V72M58 150V86M78 150V76" stroke="#fff" stroke-width="6" opacity=".6"/>','<path d="M22 150V100a28 28 0 0 1 56 0v50z" fill="#ffffff40"/><path d="M0 142h100v8H0z" fill="#00000050"/>','<circle cx="30" cy="104" r="12" fill="#fff" opacity=".7"/><circle cx="56" cy="92" r="9" fill="#fff" opacity=".5"/><circle cx="76" cy="112" r="14" fill="#fff" opacity=".35"/>'][h%4]};
+const I={d:'<circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>',s:'<path d="M4 8V5h3M17 5h3v3M20 16v3h-3M7 19H4v-3M4 12h16"/>',f:'<rect x="4" y="3" width="16" height="18" rx="3"/><path d="m10 9 5 3-5 3z"/>',a:'<path d="M18 8a6 6 0 0 0-12 0c0 7-3 8-3 8h18s-3-1-3-8M10 20a2 2 0 0 0 4 0"/>',p:'<circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/>',h:'<path d="M12 20s-8-5-8-11a4.5 4.5 0 0 1 8-2.8A4.5 4.5 0 0 1 20 9c0 6-8 11-8 11z"/>',c:'<path d="M20 12a8 8 0 0 1-11.5 7.2L4 20l1-4.2A8 8 0 1 1 20 12z"/>',b:'<path d="M5 4v16M10 4v16M15 5l4 15"/>'};
+let lib=[];
+let want=['Piranesi','Braiding Sweetgrass','Klara and the Sun'];
+const seedNear=[
+{id:1,t:'Piranesi',a:'Susanna Clarke',c:'#5B4B3A',o:'Maya',w:'Unit 3B',d:'Your building',b:1,swap:1},
+{id:2,t:'Braiding Sweetgrass',a:'Robin Wall Kimmerer',c:'#7A8541',o:'Rosa',w:'Unit 2A',d:'Your building',b:1},
+{id:3,t:'Project Hail Mary',a:'Andy Weir',c:'#C1502E',o:'Dev',w:'Maple St',d:'0.4 mi'},
+{id:4,t:'Parable of the Sower',a:'Octavia Butler',c:'#8A3B3B',o:'Maya',w:'Unit 3B',d:'Your building',b:1},
+{id:5,t:'The Overstory',a:'Richard Powers',c:'#4E6B3E',o:'Jon',w:'Pine Ct',d:'0.5 mi'},
+{id:6,t:'Klara and the Sun',a:'Kazuo Ishiguro',c:'#B88A2E',o:'Dev',w:'Maple St',d:'0.4 mi'},
+{id:7,t:'Sapiens',a:'Yuval Noah Harari',c:'#8A5A44',o:'Priya',w:'Oakdale',d:'12 mi'},
+{id:8,t:'Gilead',a:'Marilynne Robinson',c:'#7B6B3A',o:'Tom',w:'Riverton',d:'27 mi'},
+{id:9,t:'Middlemarch',a:'George Eliot',c:'#A0525C',o:'Lena',w:'Fairview',d:'44 mi'}];
+let near=seedNear;
+let th=[];
+let act=[];
+let reading=[];
+let loans=[];
+let asec='share',ropen=null,rng=30,pop=0,tab='d',filt='all',seg='mine',det=null,scanSt=0,unread=0,tid=10,pc={b:0,mode:'Page',n:112,txt:'I can’t believe I waited this long to read it. The opening hooked me instantly.',sp:0};
+const $=s=>document.getElementById(s),esc=s=>s.replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+const ART={
+'The Odyssey':'<path d="M28 118h44l-7 13H35z" fill="#fff" opacity=".9"/><path d="M50 116V66l24 44z" fill="#fff" opacity=".8"/><path d="M0 132q12-7 25 0t25 0 25 0 25 0v18H0z" fill="#00000055"/>',
+'Dune':'<circle cx="70" cy="85" r="18" fill="#f6d27a"/><path d="M0 150V115q30-30 60-8t40-12v55z" fill="#00000040"/><path d="M0 150V130q35-25 70-5t30-5v30z" fill="#00000055"/>',
+'Circe':'<circle cx="50" cy="90" r="22" fill="#fff" opacity=".9"/><circle cx="60" cy="86" r="20" style="fill:var(--c)"/><path d="M0 140q50-20 100 0v10H0z" fill="#00000055"/>',
+'The Hobbit':'<path d="M0 150V118q50-40 100 0v32z" fill="#00000050"/><circle cx="50" cy="122" r="20" fill="#8a5a2b"/><circle cx="50" cy="122" r="3" fill="#f4d27a"/>',
+'Educated':'<path d="M0 150l35-60 20 30 15-20 30 50z" fill="#00000050"/><path d="M35 90l-8 14h16z" fill="#fff" opacity=".8"/><rect x="10" y="62" width="80" height="3" fill="#fff" opacity=".4"/>',
+'Piranesi':'<path d="M10 150V95a15 15 0 0 1 30 0v55zM60 150V95a15 15 0 0 1 30 0v55z" fill="#ffffff30"/><path d="M0 138h100v12H0z" fill="#e9c98f" opacity=".6"/>',
+'Braiding Sweetgrass':'<path d="M20 150q-2-45 10-70M35 150q0-55-8-85M50 150q2-60 10-95M65 150q-2-45 14-72M80 150q0-40-6-60" stroke="#e6f2c8" stroke-width="3" fill="none" stroke-linecap="round"/>',
+'Project Hail Mary':'<circle cx="64" cy="88" r="16" fill="#f4a261"/><ellipse cx="64" cy="88" rx="30" ry="6" fill="none" stroke="#fff" stroke-width="2" opacity=".8" transform="rotate(-20 64 88)"/><circle cx="22" cy="70" r="1.5" fill="#fff"/><circle cx="35" cy="115" r="1.5" fill="#fff"/><circle cx="85" cy="125" r="1.5" fill="#fff"/>',
+'Parable of the Sower':'<path d="M50 150V105" stroke="#fff" stroke-width="3"/><path d="M50 115q-25-5-28-28q25 0 28 28zM50 105q25-5 28-28q-25 0-28 28z" fill="#f0c36a"/><path d="M0 144h100v6H0z" fill="#00000050"/>',
+'The Overstory':'<g fill="none" stroke="#fff" stroke-width="2" opacity=".6"><circle cx="50" cy="105" r="8"/><circle cx="50" cy="105" r="16"/><circle cx="50" cy="105" r="24"/><circle cx="50" cy="105" r="32"/></g>',
+'Klara and the Sun':'<circle cx="50" cy="98" r="18" fill="#ffe08a"/><path d="M50 66v-8M50 130v8M18 98h-8M90 98h-8M27 75l-6-6M73 75l6-6M27 121l-6 6M73 121l6 6" stroke="#ffe08a" stroke-width="2" stroke-linecap="round"/>',
+'Sapiens':'<circle cx="34" cy="105" r="14" fill="#fff" opacity=".85"/><circle cx="54" cy="105" r="14" fill="#fff" opacity=".55"/><circle cx="74" cy="105" r="14" fill="#fff" opacity=".3"/>',
+'Gilead':'<path d="M0 150v-20h100v20z" fill="#00000040"/><path d="M50 135V92" stroke="#f6e3a3" stroke-width="2"/><path d="M50 104q-10-8-8-18q10 4 8 18zM50 104q10-8 8-18q-10 4-8 18zM50 92q-8-8-6-17q8 4 6 17zM50 92q8-8 6-17q-8 4-6 17z" fill="#f6e3a3"/>',
+'Station Eleven':'<path d="M0 150V112l12 8 12-8 12 8 12-8 12 8 12-8 12 8 16-8v38z" fill="#00000050"/><circle cx="70" cy="82" r="3" fill="#fff"/><circle cx="30" cy="96" r="2" fill="#fff"/><circle cx="50" cy="72" r="1.5" fill="#fff"/>',
+'Middlemarch':'<rect x="18" y="82" width="26" height="46" rx="13" fill="#ffe9b0" opacity=".85"/><rect x="56" y="82" width="26" height="46" rx="13" fill="#ffe9b0" opacity=".5"/><path d="M0 134h100v16H0z" fill="#00000050"/>'};
+const cv=(b,x='')=>`<div class="cover ${x}" style="--c:${b.c}"><svg class="art" viewBox="0 0 100 150" preserveAspectRatio="xMidYMid slice" aria-hidden="true">${ART[b.t]||auto(b.t)}</svg><span>${b.t}</span><i>${b.a||''}</i></div>`;
+const ic=k=>`<svg viewBox="0 0 24 24">${I[k]}</svg>`;
+function toast(m){document.querySelectorAll('.toast').forEach(e=>e.remove());const t=document.createElement('div');t.className='toast';t.textContent=m;$('app').appendChild(t);setTimeout(()=>t.remove(),2800)}
+function go(t,d){tab=t;det=d||null;if(t==='a')unread=0;scanSt=0;draw();$('screen').scrollTop=0}
+function refresh(){tab==='a'?draw():tabs()}
+const mi=b=>b.b?0:parseFloat(b.d);
+function popup(){return `<div class="scrim" onclick="pop=0;draw()"><div class="sheet" onclick="event.stopPropagation()"><b class="serif" style="font-size:18px">Search range</b><p style="color:var(--mut);font-size:13px;margin-top:2px">Show books from neighbors within this distance.</p><div class="row" style="margin:12px 0 4px">${[1,10,30,50].map(n=>`<button class="chip ${rng===n?'on':''}" onclick="rng=${n};draw()">${n} mi</button>`).join('')}</div><button class="btn acc" onclick="pop=0;draw()">Show ${near.filter(b=>mi(b)<=rng).length} books</button></div></div>`}
+function discover(){
+ const l=near.filter(b=>mi(b)<=rng&&(filt==='all'||(filt==='b'&&b.b)||(filt==='n'&&!b.b)));
+ return `<div class="top"><div><h1>ShelfShare</h1><div class="tag-l">One Shared Shelf</div></div><button class="chip" onclick="pop=1;draw()" aria-label="Change search range">Within ${rng} mi ▾</button></div>${pop?popup():''}
+ <button class="match" onclick="go('detail',1)"><div class="pair">${cv(near[0])}${cv(lib[0])}</div><div><b>Swap match with Maya</b>She has Piranesi, which you want. You have ${lib[0].t}, which she wants.</div></button>
+ <div class="row">${[['all','All nearby'],['b','My building'],['n','Outside my building']].map(([k,n])=>`<button class="chip ${filt===k?'on':''}" onclick="filt='${k}';draw()">${n}</button>`).join('')}</div>
+ <div class="grid">${l.map(b=>`<button class="bk" onclick="go('detail',${b.id})">${cv(b)}<p>${b.t}</p><small>${b.o} · ${b.w}</small><small>${b.d}</small></button>`).join('')}</div>`}
+function detail(){
+ const b=near.find(x=>x.id===det),mine=lib[0],done=asked(b),tt=th.filter(t=>t.book===b.t);
+ return `<button class="back" onclick="go('d')">‹ Back to discover</button>
+ <div class="hero">${cv(b)}<div><h2 style="font-size:24px;line-height:1.1">${b.t}</h2><p style="color:var(--mut);margin:4px 0 10px">${b.a}</p><span class="tag">Available</span><p style="margin-top:12px"><b>${b.o}</b><br><span style="color:var(--mut)">${b.w} · ${b.d}</span></p></div></div>
+ ${b.swap&&!done?`<div class="swap"><b class="serif" style="font-size:17px">You can swap</b><p style="font-size:13px;margin-top:2px">${b.t} is on your want list, and ${b.o} wants ${mine.t}.</p><div class="pair">${cv(mine)}<span style="font-size:22px">⇄</span>${cv(b)}</div><button class="btn acc" onclick="req(${b.id},1)">Propose swap</button></div>`:''}
+ ${done?`<p class="tag" style="padding:10px 14px">Request sent to ${b.o}. Check Activity for updates.</p>`:`<button class="btn ${b.swap?'ghost':''}" onclick="req(${b.id},0)">${b.swap?'Borrow without swapping':'Request to borrow'}</button>`}
+ ${tt.length?`<h3 style="margin:18px 0 8px">What neighbors think</h3>`+tt.map(t=>`<div class="card"><b>${t.who}</b> <small style="color:var(--mut)">${t.loc}</small><p class="q">${t.spoil?'Spoiler hidden. Open the feed to reveal.':t.txt}</p></div>`).join(''):''}`}
+function req(id,sw){const b=near.find(x=>x.id===id);if(b.real)return realReq(b);const e={k:'out',t:sw?`Swap proposed: ${lib[0].t} for ${b.t}`:`You asked ${b.o} to borrow ${b.t}`,s:'Waiting',b:b.t};act.unshift(e);asec='share';go('a');toast(sw?'Swap proposed to '+b.o:'Request sent to '+b.o);
+ setTimeout(()=>{e.s='Accepted';loans.unshift({t:b.t,a:b.a,c:b.c,from:b.o,days:14,total:14});e.t=sw?`${b.o} accepted. Swap in the lobby, Saturday 10am`:`${b.o} said yes. Pick up from ${b.w} today`;unread++;refresh()},3200)}
+function approve(i){const a=act[i];a.s='Approved';const bk=lib[2]||lib[0];a.t=`You’re lending ${bk.t} to Dev. Meet at Maple St`;fakeLent[bk.id]={who:'Dev',due:14};rebuild();draw();toast(`Dev has been told. ${bk.t} is marked as lent`);
+ setTimeout(()=>{const id=++tid;th.unshift({id,who:'Dev',book:bk.t,c:bk.c,loc:'Ch. 3',txt:'Day one with your copy and I’m already hooked. Thanks so much for the lend!',likes:3,lent:1});act.unshift({k:'th',t:`Dev shared a thought on your copy of ${bk.t}`,s:'New',tid:id,fresh:1});unread++;refresh();toast(`Dev shared a thought on your copy of ${bk.t}`)},3500)}
+function feed(){return `<div class="fh"><h1 style="font-size:28px">Feed</h1><button class="chip on" onclick="go('post')">+ Add thought</button></div>`+th.map(t=>{const bk=[...lib,...near].find(b=>b.t===t.book)||{t:t.book,c:t.c},nb=near.find(b=>b.t===t.book);return `<article class="post ${t.spoil?'blur':''}" id="r${t.id}" style="--c:${t.c}"><div class="ph"><div class="pa">${t.who[0]}</div><div><b>${t.who}</b><small>${t.book} · ${t.loc}</small></div>${t.lent?'<span class="tag" style="background:var(--acc);color:var(--accink)">On your copy</span>':''}</div>
+ <div class="stage">${cv(bk)}</div><blockquote class="pq" onclick="this.parentNode.classList.remove('blur')">${esc(t.txt)}</blockquote><p class="rv">Spoiler hidden. Tap to reveal.</p>
+ <div class="acts"><button class="lk ${t.liked?'on':''}" aria-label="Like" onclick="like(${t.id},this)">${ic('h')}<span>${t.likes}</span></button><button aria-label="Replies" onclick="${t.lent?`ropen=${t.id};seg='th';go('p')`:`toast('Replies open on books you lend or borrow')`}">${ic('c')}<span>${t.who==='You'?2:Math.ceil(t.likes/6)}</span></button>${nb?`<button class="sub" aria-label="Options for ${nb.t}" onclick="sheet(${nb.id})"><span class="pa">${nb.o[0]}</span><span class="tx"><b>${nb.o}${nb.o===t.who?' has':' also has'} this book</b><small>${nb.b?'In your building':nb.d+' away'}</small></span><span class="ch">›</span></button>`:''}</div></article>`}).join('')}
+function like(id,el){const t=th.find(x=>x.id===id);t.liked=!t.liked;t.likes+=t.liked?1:-1;el.classList.toggle('on',t.liked);el.querySelector('span').textContent=t.likes}
+function compose(){const r=reading[pc.b];return `<button class="back" onclick="go('f')">‹ Cancel</button><div class="top"><h1>Share a thought</h1></div>
+ <div class="lbl" style="margin-top:0">Which book?</div><div class="row" style="margin:0">${reading.map((x,i)=>`<button class="chip ${pc.b===i?'on':''}" onclick="pc.b=${i};draw()">${x.t}</button>`).join('')}</div>
+ <div class="lbl">Where are you?</div><div class="two" style="align-items:center"><div class="seg" style="margin:0;flex:1">${['Page','Chapter'].map(m=>`<button class="${pc.mode===m?'on':''}" onclick="pc.mode='${m}';draw()">${m}</button>`).join('')}</div><input type="number" min="1" value="${pc.n}" aria-label="${pc.mode} number" oninput="pc.n=this.value"></div>
+ <div class="lbl">Your thought</div><textarea oninput="pc.txt=this.value" aria-label="Your thought">${esc(pc.txt)}</textarea>
+ <div class="item" style="margin-top:12px"><div style="flex:1"><b>Hide behind a spoiler warning</b></div><button class="sw ${pc.sp?'on':''}" aria-label="Spoiler warning" onclick="pc.sp=!pc.sp;draw()"></button></div>
+ <p style="color:var(--mut);font-size:13px;margin-top:10px">${r.from?`${r.from} lent you this book and will see your thought.`:'Neighbors who borrow this book will see your thought.'}</p>
+ <button class="btn acc" onclick="postT()">Share thought</button>`}
+function postT(){const r=reading[pc.b];th.unshift({id:++tid,who:'You',book:r.t,c:r.c,loc:(pc.mode==='Page'?'p. ':'Ch. ')+pc.n,txt:pc.txt||'Still thinking about this one.',likes:0,spoil:pc.sp});go('f');toast(r.from?`Shared. ${r.from} can see what you think of their copy`:'Thought shared with your neighbors')}
+function scan(){return `<div class="top"><h1>Add a book</h1></div>
+ <div class="view ${scanSt===1?'go':''}"><div class="bar"></div><div class="isbn">${scanSt===0?'Point your camera at the barcode':scanSt===1?'Reading barcode...':'9780393635683'}</div></div>
+ ${scanSt===0?`<button class="btn acc" onclick="doScan()">Scan barcode</button><button class="btn ghost" onclick="seg='mine';go('p')">Enter ISBN instead</button>`:''}
+ ${scanSt===2?`<div class="card item">${cv(newB)}<div><b>${newB.t}</b><small>${newB.a}</small><small>Found in 1 second</small></div></div><button class="btn acc" onclick="addB()">Add to my shelf</button><button class="btn ghost" onclick="scanSt=0;draw()">Scan another</button>`:''}`}
+const newB={t:'The Overstory',a:'Richard Powers',c:'#4E6B3E',on:1};
+function doScan(){scanSt=1;draw();setTimeout(()=>{if(tab==='s'){scanSt=2;draw()}},1800)}
+function addB(){const id=Date.now()*10;dbSet(`users/${me.id}/books/b${id}`,{id,t:newB.t,a:newB.a,c:newB.c,on:1});rebuild();seg='mine';go('p');toast('The Overstory added. Neighbors can now borrow it')}
+function profile(){
+ const mine=th.filter(t=>t.who==='You'),onMine=th.filter(t=>t.lent);
+ const body=seg==='mine'?lib.map((b,i)=>`<div class="card item">${cv(b)}<div><b>${b.t}</b><small>${b.a}</small><span class="tag ${b.on?'':'off'}">${b.lent?'Lent to '+b.lent:b.on?'Visible to neighbors':'Hidden'}</span></div><button class="sw ${b.on?'on':''}" aria-label="Toggle availability for ${b.t}" onclick="togB(${i})"></button></div>`).join('')+`<p style="color:var(--mut);font-size:13px">Switch a book off to keep it on your shelf without lending it.</p>`
+ :seg==='want'?want.map(w=>{const m=near.filter(b=>b.t===w);return `<div class="card item"><div style="flex:1"><b>${w}</b><small>${m.length?`${m[0].o} has it, ${m[0].d.toLowerCase()}`:'No neighbors have it yet'}</small></div>${m.length?`<button class="chip on" onclick="go('detail',${m[0].id})">View</button>`:''}</div>`}).join('')
+ :`<h3 style="margin-bottom:8px">From borrowers of your books</h3>${onMine.map(t=>`<div class="card"><b>${t.who}</b> <small style="color:var(--mut)">on ${t.book}, ${t.loc}</small><p class="q">${esc(t.txt)}</p>${(t.replies||[]).map(r=>`<p class="rp"><b>${r.who}</b> ${esc(r.txt)}</p>`).join('')}${ropen===t.id?`<div class="two" style="margin-top:8px;align-items:center"><input class="ri" id="ri" aria-label="Reply to ${t.who}" value="I loved that part too. Keep going, it only gets better."><button class="chip on" onclick="sendR(${t.id})">Send</button></div>`:`<button class="chip" style="margin-top:8px" onclick="ropen=${t.id};draw()">Reply</button>`}</div>`).join('')}<h3 style="margin:14px 0 8px">Your thoughts</h3>${mine.length?mine.map(t=>`<div class="card"><small style="color:var(--mut)">${t.book}, ${t.loc}</small><p class="q">${esc(t.txt)}</p>${(t.replies||[]).map(r=>`<p class="rp"><b>${r.who}</b> ${esc(r.txt)}</p>`).join('')}</div>`).join(''):'<p style="color:var(--mut)">Nothing yet. Share what you think as you read.</p>'}<button class="btn acc" onclick="go('post')">Share a thought</button>`;
+ return `<div class="item" style="margin-bottom:6px"><div class="ava">${esc(me.name.slice(0,2).toUpperCase())}</div><div style="flex:1"><h1 style="font-size:24px">${esc(me.name)}</h1><small>${esc(me.unit||'Neighbor')} · Sharing within ${rng} mi</small><small>${LIVE?'Live neighborhood':'Local demo mode'}</small></div><button class="chip" onclick="signOut()">Switch</button></div>
+ <div class="stats"><div><b>${lib.length}</b><small>On shelf</small></div><div><b>${lib.filter(b=>b.lent).length}</b><small>Lent out</small></div><div><b>${mine.length+onMine.length}</b><small>Thoughts</small></div><div><b>${new Set(near.map(b=>b.o)).size}</b><small>Neighbors</small></div></div>
+ <div class="seg"><button class="${seg==='mine'?'on':''}" onclick="seg='mine';draw()">Shelf</button><button class="${seg==='want'?'on':''}" onclick="seg='want';draw()">Want to read</button><button class="${seg==='th'?'on':''}" onclick="seg='th';draw()">Thoughts</button></div>${body}`}
+const dl=n=>n===1?'1 day':n+' days';
+function extend(i){loans[i].days+=7;loans[i].total+=7;draw();toast('Extended by a week. '+loans[i].from+' has been told.')}
+function activity(){
+ const U=DB.users||{},R=Object.values(DB.requests||{}),stl={pending:'Waiting',approved:'Accepted',declined:'Declined',returned:'Returned'},dleft=r=>Math.max(1,14-Math.floor((Date.now()-(r.appTs||Date.now()))/864e5)),
+ realIn=R.filter(r=>r.to===me.id&&r.status==='pending').map(r=>[{k:'in',s:'Pending',who:r.fromName,w:(U[r.from]||{}).unit||'Nearby',d:'In your building',b:r.t,rid:r.id,bk:{t:r.t,a:r.a,c:r.c}},-1]),
+ realOut=R.filter(r=>r.from===me.id&&r.status!=='returned').map(r=>({t:`You asked ${r.toName} to borrow ${r.t}`,s:stl[r.status]})),
+ realLoans=R.filter(r=>r.from===me.id&&r.status==='approved').map(r=>({t:r.t,a:r.a,c:r.c,from:r.toName,days:dleft(r),total:14,real:1})),
+ P=act.map((a,i)=>[a,i]),pend=[...realIn,...P.filter(([a])=>a.k==='in'&&a.s==='Pending')],outs=[...realOut,...act.filter(a=>a.k==='out')],ths=P.filter(([a])=>a.k==='th'||a.k==='rp'),lent=lib.filter(b=>b.lent),nT=ths.filter(([a])=>a.fresh).length;
+ const head=`<div class="top"><h1>Activity</h1></div><div class="seg"><button class="${asec==='share'?'on':''}" onclick="asec='share';draw()">Sharing${pend.length?`<b class="nb">${pend.length}</b>`:''}</button><button class="${asec==='th'?'on':''}" onclick="asec='th';draw()">Thoughtstream${nT&&asec!=='th'?`<b class="nb">${nT}</b>`:''}</button></div>`;
+ if(asec==='th'){const h=ths.length?ths.map(([a])=>{const tt=th.find(x=>x.id===a.tid),pv=a.k==='rp'?(tt&&tt.replies&&tt.replies.length?tt.replies[tt.replies.length-1].txt:''):(tt?tt.txt:'');return `<div class="card"><div class="item"><div style="flex:1"><b style="font-weight:500">${a.t}</b></div>${a.fresh?'<span class="st ok">New</span>':''}</div>${pv?`<p class="q" style="font-size:14px">\u201c${esc(pv)}\u201d</p>`:''}<button class="btn ghost" onclick="${a.k==='rp'?`ropen=null;seg='th';go('p')`:`seeT(${a.tid})`}">${a.k==='rp'?'See reply':'See thought'}</button></div>`}).join(''):'<p style="color:var(--mut)">No thoughts yet. Share one from the Feed.</p>';act.forEach(a=>a.fresh=0);return head+h}
+ const rq=pend.map(([a,i])=>{const bk=a.bk||lib.find(b=>b.t===a.b)||{t:a.b,c:'#8C4A3C'};return `<div class="reqc"><div class="ph"><div class="pa" style="--c:${bk.c}">${a.who[0]}</div><div><b>${a.who} wants to borrow</b><small>${a.w} · ${a.d}</small></div><span class="tag" style="background:var(--acc);color:var(--accink)">New request</span></div><div class="item">${cv(bk)}<div><b class="serif" style="font-size:18px">${a.b}</b><small>${bk.a||''}</small><small>Usually lent for two weeks</small></div></div><div class="two"><button class="btn acc" onclick="${a.rid?`apR('${a.rid}',1)`:`approve(${i})`}">Approve</button><button class="btn ghost" onclick="${a.rid?`apR('${a.rid}',0)`:`act[${i}].s='Declined';draw()`}">Decline</button></div></div>`}).join('');
+ const ot=outs.map(a=>`<div class="card"><div class="item"><div style="flex:1"><b style="font-weight:500">${a.t}</b></div><span class="st ${a.s==='Accepted'?'ok':''}">${a.s}</span></div></div>`).join('');
+ const bo=[...realLoans,...loans].map((l,i)=>`<div class="card"><div class="item">${cv(l)}<div><b>${l.t}</b><small>From ${l.from}</small><div class="bar2 ${l.days<=3?'lo':''}"><i style="width:${Math.min(100,l.days/l.total*100)}%"></i></div><small><b>${dl(l.days)} left</b>${l.days<=3?' · due soon':''}</small></div></div>${l.real?'':`<div class="two"><button class="chip" onclick="extend(${loans.indexOf(l)})">Extend by a week</button></div>`}</div>`).join('');
+ const lo=lent.map(b=>`<div class="card item">${cv(b)}<div><b>${b.t}</b><small>With ${b.lent}</small><span class="tag">Returns in ${dl(b.due||7)}</span>${b.rid?`<button class="chip" style="margin-left:6px" onclick="retR('${b.rid}')">Mark returned</button>`:''}</div></div>`).join('');
+ return head+(rq?`<h3 class="sec" style="margin-top:4px">Requests for you</h3>`+rq:'')+(ot?`<h3 class="sec">Your requests</h3>`+ot:'')+(bo?`<h3 class="sec">Borrowed by you</h3>`+bo:'')+(lo?`<h3 class="sec">Lent out</h3>`+lo:'')}
+function sendR(id){const t=th.find(x=>x.id===id),v=$('ri').value.trim();if(!v)return;(t.replies=t.replies||[]).push({who:'You',txt:v});ropen=null;draw();toast('Reply sent to '+t.who);
+ setTimeout(()=>{t.replies.push({who:t.who,txt:'Thank you! I’ll bring it back soon, and I’ll tell you what I think of the ending.'});act.unshift({k:'rp',t:`${t.who} replied on ${t.book}`,s:'New',tid:t.id,fresh:1});unread++;if(tab==='p'&&seg==='th')draw();else refresh();toast(t.who+' replied to you')},2800)}
+function wl(t){return want.includes(t)?'✓ On your want list<small>Tap to remove</small>':'Mark as want to read<small>We’ll tell you when a neighbor has it</small>'}
+function sheet(id){const b=near.find(x=>x.id===id),done=asked(b);
+ const e=document.createElement('div');e.className='scrim2';e.id='sheet';e.onclick=closeSheet;
+ e.innerHTML=`<div class="sh" role="dialog" aria-label="Options for ${b.t}" onclick="event.stopPropagation()"><div class="grab"></div><div class="item" style="margin-bottom:4px">${cv(b)}<div><b class="serif" style="font-size:18px">${b.t}</b><small>${b.a}</small><small>${b.o} · ${b.w}</small><small>${b.b?'In your building':b.d+' away'}</small></div></div>
+ ${done?`<p class="tag" style="display:block;margin-top:10px;padding:10px 14px">Request already sent to ${b.o}</p>`:`${b.swap?`<button class="opt pri" onclick="closeSheet();req(${b.id},1)">Propose a swap<small>Trade ${lib[0].t} for ${b.t}</small></button>`:''}<button class="opt ${b.swap?'':'pri'}" onclick="closeSheet();req(${b.id},0)">${b.swap?'Borrow without swapping':'Request to borrow'}<small>${b.o} usually lends for two weeks</small></button>`}
+ <button class="opt" id="wb" onclick="toggleWant('${b.t}')">${wl(b.t)}</button>
+ <button class="opt" onclick="closeSheet();go('detail',${b.id})">View book page<small>See what neighbors think of it</small></button>
+ <button class="btn ghost" onclick="closeSheet()">Close</button></div>`;$('app').appendChild(e)}
+function closeSheet(){const e=$('sheet');if(!e)return;e.id='';e.classList.add('out');setTimeout(()=>e.remove(),230)}
+function toggleWant(t){const i=want.indexOf(t);i<0?want.push(t):want.splice(i,1);$('wb').innerHTML=wl(t);toast(i<0?'Added to your want to read list':'Removed from your want to read list')}
+const asked=b=>act.some(a=>a.b===b.t)||Object.values(DB.requests||{}).some(r=>r.from===me.id&&r.bookId===b.id&&r.status!=='declined'&&r.status!=='returned');
+function togB(i){const b=lib[i];dbSet(`users/${me.id}/books/b${b.id}/on`,b.on?0:1);rebuild();draw()}
+function seedWorld(){const[a,b,c]=[0,1,2].map(i=>lib[i]||POOL[i]);
+ th=[{id:1,who:'Maya',book:b.t,c:b.c,loc:'Ch. 9',txt:'Halfway through and I keep thinking about it on my commute. Thank you for lending me this one!',likes:12,lent:1},
+ {id:2,who:'Rosa',book:'Braiding Sweetgrass',c:'#7A8541',loc:'Ch. 1',txt:'Read “Skywoman Falling” on the stairs and walked right past my floor.',likes:31},
+ {id:3,who:'Dev',book:'Project Hail Mary',c:'#C1502E',loc:'p. 204',txt:'Rocky might be the best character anyone has written in ten years.',likes:48},
+ {id:4,who:'Jon',book:'The Overstory',c:'#4E6B3E',loc:'p. 301',txt:'The tree that was hiding in plain sight the whole time. Can’t say more.',likes:9,spoil:1},
+ {id:5,who:'Tom',book:'Project Hail Mary',c:'#C1502E',loc:'p. 88',txt:'Waking up with no memory and a mystery to solve is the best opening hook I’ve read in years.',likes:22},
+ {id:6,who:'You',book:a.t,c:a.c,loc:'p. 98',txt:'I’d forgotten how strange and funny the opening is. Reading it slowly this time.',likes:7,replies:[{who:'Rosa',txt:'Try reading a chapter out loud. It hits completely differently!'}]}];
+ act=[{k:'in',t:`Dev wants to borrow ${c.t}`,s:'Pending',b:c.t,who:'Dev',w:'Maple St',d:'0.4 mi away'},{k:'th',t:`Maya shared a thought on your copy of ${b.t}`,s:'New',tid:1,fresh:1},{k:'rp',t:`Rosa replied to your thought on ${a.t}`,s:'New',tid:6,fresh:1}];
+ loans=[{t:'Station Eleven',a:'Emily St. John Mandel',c:'#6A4A5A',from:'Rosa',days:9,total:14}];
+ reading=[{t:a.t,c:a.c},{t:b.t,c:b.c},{t:'Station Eleven',c:'#6A4A5A',from:'Rosa'}];
+ fakeLent={[b.id]:{who:'Maya',due:6}};unread=3;seen=null;tid=10;rebuild();notify()}
+function rebuild(){const U=DB.users||{},R=Object.values(DB.requests||{}),mine=(U[me.id]||{}).books||{};
+ lib=Object.values(mine).sort((x,y)=>x.id-y.id).map(b=>{const r=R.find(r=>r.bookId===b.id&&r.status==='approved'),f=fakeLent[b.id];return {...b,lent:r?r.fromName:f&&f.who,due:r?Math.max(1,14-Math.floor((Date.now()-(r.appTs||Date.now()))/864e5)):f&&f.due,rid:r&&r.id}});
+ const held=new Set(R.filter(r=>r.status==='approved').map(r=>r.bookId)),real=[];
+ Object.entries(U).forEach(([id,u])=>{if(id===me.id)return;Object.values(u.books||{}).forEach(b=>{if(b.on&&!held.has(b.id))real.push({id:b.id,t:b.t,a:b.a,c:b.c,o:u.name,w:u.unit||'Nearby',d:'In your building',b:1,real:1,uid:id})})});
+ near=[...seedNear,...real]}
+function notify(){const R=Object.values(DB.requests||{}),cur={};R.forEach(r=>{if(r.to===me.id||r.from===me.id)cur[r.id]=r.status});
+ if(seen)R.forEach(r=>{if(r.to===me.id&&!(r.id in seen)){unread++;toast(`${r.fromName} wants to borrow ${r.t}`)}else if(r.from===me.id&&seen[r.id]&&seen[r.id]!==r.status&&r.status!=='returned'){unread++;toast(r.status==='approved'?`${r.toName} approved ${r.t}. Check Activity`:`${r.toName} declined ${r.t}`)}});seen=cur}
+function realReq(b){const id='r'+Date.now()+Math.floor(Math.random()*99);dbSet('requests/'+id,{id,bookId:b.id,t:b.t,a:b.a,c:b.c,from:me.id,fromName:me.name,to:b.uid,toName:b.o,status:'pending',ts:Date.now()});if(seen)seen[id]='pending';asec='share';go('a');toast('Request sent to '+b.o)}
+function apR(id,ok){const r=DB.requests[id];if(!r)return;dbSet('requests/'+id,{...r,status:ok?'approved':'declined',appTs:Date.now()});rebuild();draw();toast(ok?`${r.fromName} has been told. ${r.t} is marked as lent`:'Request declined')}
+function retR(id){const r=DB.requests[id];if(!r)return;dbSet('requests/'+id,{...r,status:'returned'});rebuild();draw();toast('Marked as returned. It’s back on your shelf')}
+function onboard(){return `<div style="min-height:100%;display:flex;flex-direction:column;justify-content:center"><h1 style="font-size:38px;text-align:center">ShelfShare</h1><p class="tag-l" style="font-size:15px;text-align:center;margin-bottom:18px">One Shared Shelf</p>
+ <div class="pair big" style="justify-content:center;margin-bottom:18px">${POOL.slice(0,3).map(b=>cv(b)).join('')}</div>
+ <label class="lbl" for="un" style="margin-top:0">What should neighbors call you?</label><input id="un" class="ri" style="width:100%;border-radius:14px;padding:12px" maxlength="20" placeholder="e.g. Alex" autocomplete="off" onkeydown="if(event.key==='Enter')signUp()">
+ <label class="lbl" for="ut">Where are you? <span style="font-weight:400;color:var(--mut)">(optional)</span></label><input id="ut" class="ri" style="width:100%;border-radius:14px;padding:12px" maxlength="20" placeholder="e.g. Unit 3B or Midtown" autocomplete="off" onkeydown="if(event.key==='Enter')signUp()">
+ <button class="btn acc" onclick="signUp()">Create account</button>
+ <p style="color:var(--mut);font-size:13px;margin-top:12px;text-align:center">We’ll put three classics on your shelf so neighbors have something to borrow right away. Already signed up? Enter the same name to log back in.</p>
+ <p class="tag" style="margin:10px auto 0;text-align:center">${LIVE?'Live: everyone on this site shares one neighborhood':'Local mode: accounts live in this browser only'}</p></div>`}
+async function signUp(){await sync(true);if(!DBok){toast('Can’t reach the server. Check your connection.');return}
+ const cl=s=>s.replace(/[^\p{L}\p{N} .'’-]/gu,'').trim().slice(0,20),name=cl($('un').value),unit=cl($('ut').value);if(!name){toast('Enter a name first');return}
+ const id=name.toLowerCase().replace(/[^\p{L}\p{N}]+/gu,'-').replace(/^-|-$/g,'')||'neighbor',U=DB.users||{};let fresh=false;
+ if(U[id])me={id,name:U[id].name,unit:U[id].unit};else{fresh=true;
+  const held={};Object.values(U).forEach(u=>Object.values(u.books||{}).forEach(b=>held[b.t]=(held[b.t]||0)+1));
+  const pick=POOL.map((b,i)=>[b,i]).sort((x,y)=>(held[x[0].t]||0)-(held[y[0].t]||0)||x[1]-y[1]).slice(0,3).map(x=>x[0]),t0=Date.now()*10,books={};
+  pick.forEach((b,i)=>books['b'+(t0+i)]={id:t0+i,t:b.t,a:b.a,c:b.c,on:1});
+  await dbSet('users/'+id,{name,unit,joined:Date.now(),books});me={id,name,unit}}
+ ls.set('ss_me',JSON.stringify(me));tab='d';rebuild();seedWorld();draw();toast(fresh?`Welcome, ${name}. Three books are now on your shelf`:`Welcome back, ${name}`)}
+function signOut(auto){ls.del('ss_me');me=null;seen=null;tab='d';asec='share';draw();if(auto)toast('Account not found. Please sign up again.')}
+async function sync(force){if(pend)return;let d;try{d=scrub(await load());DBok=true}catch(e){return}const j=JSON.stringify(d);if(j===last&&!force)return;last=j;DB=d;if(!me)return;if(!(DB.users||{})[me.id]){signOut(1);return}
+ rebuild();notify();const ae=document.activeElement;if(['d','a','p'].includes(tab)&&!document.querySelector('.scrim,.scrim2')&&!(ae&&/INPUT|TEXTAREA/.test(ae.tagName)))draw();else tabs()}
+function seeT(id){go('f');document.getElementById('r'+id).scrollIntoView({block:'center'})}
+function tabs(){$('tabs').innerHTML=[['d','Discover'],['f','Feed'],['s','Add'],['a','Activity'],['p','Me']].map(([k,n])=>k==='s'?`<button class="scan" onclick="go('s')"><span>${ic('s')}</span>${n}</button>`:`<button class="${tab===k||(tab==='detail'&&k==='d')||(tab==='post'&&k==='f')?'on':''}" onclick="go('${k}')">${ic(k)}${n}${k==='a'&&unread?`<b class="dot">${unread}</b>`:''}</button>`).join('')}
+function draw(){const s=$('screen');s.className='';if(!me){s.innerHTML=onboard();$('tabs').innerHTML='';return}s.innerHTML={d:discover,detail,f:feed,post:compose,s:scan,p:profile,a:activity}[tab]();tabs()}
+setInterval(()=>sync(),2500);addEventListener('storage',()=>sync());
+(async()=>{$('screen').innerHTML='<p style="color:var(--mut);margin-top:40%;text-align:center">Loading…</p>';await sync(true);let sv=null;try{sv=JSON.parse(ls.get('ss_me')||'null')}catch(e){}
+ if(sv&&(DB.users||{})[sv.id]){me=sv;seedWorld()}draw()})();
+</script></body></html>
