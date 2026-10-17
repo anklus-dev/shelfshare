@@ -42,6 +42,11 @@ A neighborhood book-lending app demo (HackATL). One static page, no build step. 
 - Security rules live in `firebase-rules.json`. Paste them in the Firebase console: Realtime Database, Rules tab, replace everything, Publish. After that only signed-in users can read, you can only change your own profile and books, only the lender can approve a request, and nobody can post as someone else.
 - Accounts are identified by Firebase user IDs. If you upgrade from the older name-only version, delete the `ss` node once (Data tab) so old test data goes away.
 
+## Membership and referrals (demo)
+- After creating an account, new users see a $10/month membership page. Payments are **not** wired up: "Start membership" opens a demo notice and nothing is charged or collected. The "or skip, this is just the demo!" link continues without it.
+- The Me tab has a Membership card and a personal **referral code** (like ALIC-7K2Q) with Copy and Share buttons. Shared links look like `your-site/?ref=ALIC-7K2Q` and pre-fill the code on sign-up. The card counts how many neighbors joined with your code. The "first month free" reward is a promise only, not implemented.
+- If you already published the security rules, paste the updated `firebase-rules.json` again (it adds three small fields: plan, ref, refBy).
+
 ## Resetting and limits
 
 - **Reset between demos:** delete the `ss` node in Firebase (Data tab).
@@ -55,3 +60,11 @@ A neighborhood book-lending app demo (HackATL). One static page, no build step. 
 2. Sam's Discover shows Alex's books. Open Community → the building club and chat.
 3. Sam requests a book; Alex approves in Activity. Sam shares a thought; it shows up in Alex's Thoughtstream. Alex replies.
 4. Each marks a book as read, then check Community → Leaderboard.
+
+## What's new in v10
+
+- **New logo**: the book-and-daisy icon is on the login screen, the top bar, the membership page, the browser tab, and the home-screen icon. Deploy the new `icons/` folder and `manifest.webmanifest` along with `index.html`.
+- **Reading streaks**: on the Me tab, tap "Log today's reading", pick a book, and enter the pages. Any log counts for the day. You can also log for yesterday. A streak survives until the end of the next day, so a streak from yesterday shows "read today to keep it going".
+- **Progress tab** (Me, then Progress): total pages, books finished, current and longest streak, days read, average pages per day, pages this week, most-read book, 11 badges and 9 levels (New Reader up to Grand Librarian).
+- **Leaderboard** now has Streak and Pages boards alongside Read and Lent.
+- **Security rules changed**: re-paste `firebase-rules.json` into Realtime Database, Rules, and Publish. Without this, logging pages will fail to save. Data is stored at `users/<uid>/rl/<YYYY-MM-DD>` as `{p: pages, t: title}`.

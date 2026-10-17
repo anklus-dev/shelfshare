@@ -25,6 +25,29 @@
                 ".validate": "newData.isString()&&newData.val().length<=40000&&newData.val().matches(/^(https|data):.*/)"
               }
             }
+          },
+          "plan": {
+            ".validate": "newData.isString()&&newData.val().length<=12"
+          },
+          "ref": {
+            ".validate": "newData.isString()&&newData.val().length<=12"
+          },
+          "refBy": {
+            ".validate": "newData.isString()&&newData.val().length<=40"
+          },
+          "rl": {
+            "$d": {
+              ".validate": "$d.matches(/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/)",
+              "p": {
+                ".validate": "newData.isNumber()&&newData.val()>=1&&newData.val()<=20000"
+              },
+              "t": {
+                ".validate": "newData.isString()&&newData.val().length<=60"
+              },
+              "$other": {
+                ".validate": "false"
+              }
+            }
           }
         }
       },

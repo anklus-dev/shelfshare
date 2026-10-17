@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en"><head><meta charset="utf-8">
+<html lang="en"><head><meta charset="utf-8"><link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png"><link rel="icon" type="image/png" sizes="64x64" href="icons/favicon-64.png"><link rel="apple-touch-icon" href="icons/apple-touch-icon.png"><link rel="manifest" href="manifest.webmanifest"><meta name="theme-color" content="#F2E9DC"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="ShelfShare">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>ShelfShare – One Shared Shelf</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,700&family=DM+Sans:wght@400;500;700&display=swap">
@@ -157,6 +157,22 @@ select.ri{border-radius:12px;width:100%;margin-top:6px}
 @keyframes flapL{from{transform:rotate(-24deg) scaleY(1)}to{transform:rotate(22deg) scaleY(.82)}}
 @keyframes flapR{from{transform:rotate(24deg) scaleY(1)}to{transform:rotate(-22deg) scaleY(.82)}}
 @media (prefers-reduced-motion:reduce){.reqc .bkico{animation:none}}
+.planwrap{min-height:100%;display:flex;flex-direction:column;justify-content:center;padding-bottom:8px}
+.plan{border:2px solid var(--acc);border-radius:22px;padding:18px;box-shadow:0 8px 22px rgba(120,70,20,.18)}
+.plan .price{text-align:center}.plan .price b{font:700 54px/1 Fraunces,Georgia,serif}.plan .price span{color:var(--mut);font-size:16px;margin-left:4px}
+.perks{list-style:none;margin:0 0 4px;padding:0}.perks li{padding:6px 0 6px 26px;position:relative;font-size:15px}
+.perks li::before{content:'';position:absolute;left:3px;top:11px;width:12px;height:7px;border-left:3px solid var(--acc);border-bottom:3px solid var(--acc);transform:rotate(-45deg)}
+.acct .hr{height:1px;background:var(--line);margin:12px 0}
+.refcode{font:700 24px/1 ui-monospace,Menlo,Consolas,monospace;letter-spacing:.14em;text-align:center;background:var(--pinebg);color:var(--pine);border:2px dashed var(--acc);border-radius:14px;padding:14px 8px;margin:8px 0 10px;user-select:all}
+.logo{display:block;margin:0 auto 4px;height:auto;max-width:60%}
+.planwrap .logo{margin-bottom:2px}
+#bar .wm{display:flex;align-items:center;gap:8px}
+#bar .wm img{display:block;height:31px;width:auto}
+.streak{padding:14px;margin:10px 0}.flame{position:relative;width:54px;height:54px;border-radius:50%;background:#FFE8CC;display:grid;place-items:center;font-size:30px;flex:none}.flame b{position:absolute;bottom:-4px;right:-4px;background:var(--card);border:2px solid #E8833A;border-radius:10px;font:700 13px Fraunces,Georgia,serif;padding:0 6px}.flame.cold{filter:grayscale(1);opacity:.55}
+.wk{display:flex;justify-content:space-between;margin:12px 0}.wk>div{text-align:center;flex:1}.wk i{display:grid;place-items:center;width:30px;height:30px;margin:0 auto 2px;border-radius:50%;background:var(--line);font-style:normal;font-size:16px}.wk .on i{background:#FFE8CC}.wk .td i{outline:2px solid #E8833A}.wk small{color:var(--mut);font-size:11px}
+.lvl{margin:4px 0 12px}.logf input{margin-bottom:8px}.logf .two{margin-bottom:8px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}.sc2{text-align:center;padding:14px 8px;margin:0}.sc2 b{display:block;font:700 24px Fraunces,Georgia,serif}.sc2 small{color:var(--mut)}
+.bdg{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.bdg>div{text-align:center;padding:10px 4px;border-radius:12px;background:var(--line);opacity:.45;filter:grayscale(1)}.bdg .on{background:#FFE8CC;opacity:1;filter:none}.bdg i{display:block;font-style:normal;font-size:26px}.bdg small{font-size:11px}
 </style></head><body>
 <div id="app"><header id="bar"></header><main id="screen"></main><nav class="tabs" id="tabs"></nav></div>
 <script>
@@ -365,18 +381,20 @@ function postT(){const r=readingList()[pc.b];if(!r)return;const id='t'+uid();
 
 
 /* ---------- profile ---------- */
-function stats(id){const u=(DB.users||{})[id]||{};return {read:Object.keys(u.read||{}).length,lent:Object.values(DB.requests||{}).filter(r=>r.to===id&&(r.status==='approved'||r.status==='returned')).length}}
+function stats(id){const u=(DB.users||{})[id]||{};return {read:Object.keys(u.read||{}).length,lent:Object.values(DB.requests||{}).filter(r=>r.to===id&&(r.status==='approved'||r.status==='returned')).length,streak:streakOf(id).cur,pages:streakOf(id).pages}}
 const tcard=t=>`<div class="card"><b>${esc(t.uid===me.id?'You':t.who)}</b> <small style="color:var(--mut)">on ${esc(t.t)}, ${esc(t.loc)}</small><p class="q">${esc(t.txt)}</p>${ropen===t.id?repliesHTML(t):`${reps(t).map(r=>`<p class="rp"><b>${esc(r.who)}</b> ${esc(r.txt)}</p>`).join('')}<button class="chip" style="margin-top:8px" onclick="ropen='${t.id}';draw();setTimeout(()=>{const i=$('ri');i&&i.focus()},30)">Reply</button>`}</div>`;
 function profile(){
  const meU=(DB.users||{})[me.id]||{},ml=meU.loc,st=stats(me.id),T=thoughtsArr(),mine=T.filter(t=>t.uid===me.id),onMine=T.filter(t=>t.lender===me.id&&t.uid!==me.id);
  const nbrs=Object.entries(DB.users||{}).filter(([id,u])=>id!==me.id&&(dist(ml,u.loc)||1e9)<=30).length;
- const body=seg==='mine'?(lib.length?lib.map((b,i)=>`<div class="card item">${cv(b)}<div><b>${esc(b.t)}</b><small>${esc(b.a)}</small><span class="tag ${b.on?'':'off'}">${b.lent?'Lent to '+esc(b.lent):b.on?'Visible to neighbors':'Hidden'}</span><div><button class="chip ${b.read?'on':''}" style="margin-top:6px" onclick="readB(${i})">${b.read?'Read ✓':'Mark as read'}</button></div></div><button class="sw ${b.on?'on':''}" aria-label="Toggle availability for ${esc(b.t)}" onclick="togB(${i})"></button></div>`).join('')+`<p style="color:var(--mut);font-size:13px">Switch a book off to keep it on your shelf without lending it.</p>`:`<div class="card empty"><b class="serif" style="font-size:18px">Your shelf is empty</b><p>Scan a book to share it with neighbors.</p><button class="btn acc" onclick="go('s')">Add a book</button></div>`)
+ const body=seg==='prog'?progressView():seg==='mine'?(lib.length?lib.map((b,i)=>`<div class="card item">${cv(b)}<div><b>${esc(b.t)}</b><small>${esc(b.a)}</small><span class="tag ${b.on?'':'off'}">${b.lent?'Lent to '+esc(b.lent):b.on?'Visible to neighbors':'Hidden'}</span><div><button class="chip ${b.read?'on':''}" style="margin-top:6px" onclick="readB(${i})">${b.read?'Read ✓':'Mark as read'}</button></div></div><button class="sw ${b.on?'on':''}" aria-label="Toggle availability for ${esc(b.t)}" onclick="togB(${i})"></button></div>`).join('')+`<p style="color:var(--mut);font-size:13px">Switch a book off to keep it on your shelf without lending it.</p>`:`<div class="card empty"><b class="serif" style="font-size:18px">Your shelf is empty</b><p>Scan a book to share it with neighbors.</p><button class="btn acc" onclick="go('s')">Add a book</button></div>`)
  :seg==='want'?`<form onsubmit="addWant();return false" class="two" style="align-items:center;margin-bottom:12px"><input class="ri" id="wi" aria-label="Add a book you want" maxlength="60" placeholder="Add a book you want to read"><button class="chip on" type="submit">Add</button></form>`+(want.length?want.map(w=>{const m=near.find(b=>slug(b.t)===slug(w));return `<div class="card item"><div style="flex:1"><b>${esc(w)}</b><small>${m?`${esc(m.o)} has it, ${m.b?'in your building':esc(m.d)}`:'No neighbors have it yet'}</small></div>${m?`<button class="chip on" onclick="go('detail',${m.id})">View</button>`:''}<button class="chip" aria-label="Remove ${esc(w)}" onclick="rmWant('${key(w)}')">Remove</button></div>`}).join(''):'<p style="color:var(--mut)">Nothing here yet. Add a book above, or mark one from Discover.</p>')
  :`<h3 style="margin-bottom:8px">From borrowers of your books</h3>${onMine.length?onMine.map(tcard).join(''):'<p style="color:var(--mut);margin-bottom:8px">When someone shares a thought on a book you lent, it shows up here.</p>'}<h3 style="margin:14px 0 8px">Your thoughts</h3>${mine.length?mine.map(tcard).join(''):'<p style="color:var(--mut)">Nothing yet. Share what you think as you read.</p>'}<button class="btn acc" onclick="go('post')">Share a thought</button>`;
  return `<div class="item" style="margin-bottom:6px"><div class="ava">${esc(initials(me.name))}</div><div style="flex:1"><h1 style="font-size:24px">${esc(me.name)}</h1><small>${esc(meU.unit||'Neighbor')}</small><small>${esc((AU&&AU.email)||'')}</small><small>${ml?esc(locLabel(ml)):'Location not set'}${ml&&ml.src==='gps'?' · precise':''}</small></div><button class="chip" onclick="signOut('Logged out')">Log out</button></div>
  ${ml&&ml.src!=='gps'?`<button class="chip" style="margin:4px 0 0" onclick="preciseLoc()">${ic('pin')} Use precise location</button>`:''}
  <div class="stats"><div><b>${lib.length}</b><small>On shelf</small></div><div><b>${st.read}</b><small>Read</small></div><div><b>${st.lent}</b><small>Lent</small></div><div><b>${nbrs}</b><small>Neighbors</small></div></div>
- <div class="seg"><button class="${seg==='mine'?'on':''}" onclick="seg='mine';draw()">Shelf</button><button class="${seg==='want'?'on':''}" onclick="seg='want';draw()">Want to read</button><button class="${seg==='th'?'on':''}" onclick="seg='th';draw()">Thoughts</button></div>${body}`}
+ ${streakCard()}
+ ${acctCard()}
+ <div class="seg"><button class="${seg==='prog'?'on':''}" onclick="seg='prog';draw()">Progress</button><button class="${seg==='mine'?'on':''}" onclick="seg='mine';draw()">Shelf</button><button class="${seg==='want'?'on':''}" onclick="seg='want';draw()">Want to read</button><button class="${seg==='th'?'on':''}" onclick="seg='th';draw()">Thoughts</button></div>${body}`}
 
 /* ---------- activity ---------- */
 function tItems(){const out=[];thoughtsArr().forEach(t=>{
@@ -605,6 +623,37 @@ function owlTake(id){return new Promise(res=>{
  const done=()=>{o.remove();card.classList.remove('taking');owlBusy=0;res()};
  a.onfinish=done;a.oncancel=done;setTimeout(()=>{if(o.isConnected)done()},T+600)})}
 
+/* ---------- membership (demo checkout) + referral codes ---------- */
+const cleanRef=s=>String(s||'').toUpperCase().replace(/[^A-Z0-9-]/g,'').slice(0,12);
+let refIn=(()=>{try{const c=cleanRef(new URLSearchParams(location.search).get('ref')||ls.get('ss_ref')||'');if(c)ls.set('ss_ref',c);return c}catch(e){return ''}})();
+function genRef(name,id,U){const A='ABCDEFGHJKLMNPQRSTUVWXYZ23456789',pre=(String(name).normalize('NFD').replace(/[^A-Za-z]/g,'').toUpperCase()+'READ').slice(0,4),taken=new Set(Object.values(U||{}).map(u=>u&&u.ref));
+ for(let n=0;n<50;n++){let h=7;for(const c of id+'|'+n)h=(Math.imul(h,31)+c.charCodeAt(0))>>>0;let s='';for(let i=0;i<4;i++){s+=A[h%32];h=((h>>>5)^Math.imul(h,2654435761))>>>0}const code=pre+'-'+s;if(!taken.has(code))return code}
+ return pre+'-'+Date.now().toString(36).slice(-4).toUpperCase()}
+const refLink=c=>location.origin+location.pathname+'?ref='+encodeURIComponent(c);
+let planSt=0;
+function planView(){const U=DB.users||{},mu=U[me.id]||{},rb=mu.refBy&&U[mu.refBy],isM=mu.plan==='member';
+ return `<div class="planwrap">${mu.plan?`<button class="back" onclick="go('p')">‹ Back</button>`:''}<img class="logo" src="icons/logo-256.png" width="72" alt="" onerror="this.remove()"><p class="tag-l" style="text-align:center">${mu.plan?'Membership':'One last step'}</p><h1 style="text-align:center;font-size:30px;margin-bottom:12px">Join the shelf</h1>
+ <div class="card plan"><div class="price"><b>$10</b><span>/month</span></div><p style="text-align:center;color:var(--mut);margin:2px 0 12px">Less than one new paperback a month.</p>
+ <ul class="perks"><li>Borrow from every neighbor’s shelf</li><li>Unlimited requests and swaps</li><li>Book clubs, thoughts and the leaderboard</li><li>Cancel anytime</li></ul>
+ ${rb?`<p class="tag" style="display:block;text-align:center;margin:10px 0 0">Referred by ${esc(rb.name)}: your first month is on us</p>`:''}
+ ${isM?'<p class="tag" style="display:block;text-align:center;margin-top:12px">You’re a member (demo)</p>':'<button class="btn acc" onclick="planSt=1;draw()">Start membership · $10/month</button>'}</div>
+ ${isM?'':`<button class="back" style="margin:12px auto 0;display:block;font-size:15px" onclick="skipPlan()">or skip, this is just the demo!</button>`}
+ <p class="loc" style="font-size:12px">Payments aren’t switched on yet, so nothing is charged and no card is needed.</p>
+ ${planSt?`<div class="scrim" onclick="planSt=0;draw()"><div class="sheet" role="dialog" aria-label="Demo checkout" onclick="event.stopPropagation()"><b class="serif" style="font-size:18px">This is a demo</b><p style="color:var(--mut);font-size:14px;margin:6px 0 4px">Payments aren’t turned on yet, so nothing is charged and no card is needed. In the full app, secure checkout opens here.</p><button class="btn acc" onclick="startPlan()">Continue as a demo member</button><button class="btn ghost" onclick="planSt=0;draw()">Back</button></div></div>`:''}</div>`}
+function startPlan(){dbSet(`users/${me.id}/plan`,'member');planSt=0;go('d');toast('Welcome to the shelf. Membership is a demo, so no charge.')}
+function skipPlan(){const mu=(DB.users||{})[me.id]||{};if(!mu.plan)dbSet(`users/${me.id}/plan`,'skipped');planSt=0;go('d');toast('Skipped. Enjoy the demo!')}
+function joinPlan(){planSt=0;go('plan')}
+function acctCard(){const U=DB.users||{},mu=U[me.id]||{},code=mu.ref||'',n=Object.values(U).filter(u=>u.refBy===me.id).length,isM=mu.plan==='member';
+ return `<div class="card acct"><div class="item"><div style="flex:1"><b class="serif" style="font-size:17px">Membership</b><small>${isM?'ShelfShare Member · $10/month':'Not a member yet'}</small><small>${isM?'Demo only: nothing is charged':'You skipped the demo checkout'}</small></div>${isM?'<span class="tag">Active</span>':'<button class="chip on" onclick="joinPlan()">Join · $10/mo</button>'}</div>
+ <div class="hr"></div><b style="font-size:14px">Your referral code</b><div class="refcode" aria-label="Your referral code">${esc(code||'…')}</div>
+ <div class="two"><button class="chip on" onclick="copyRef()">Copy code</button><button class="chip" onclick="shareRef()">Share invite link</button></div>
+ <small style="color:var(--mut);display:block;margin-top:8px">${n?`${n} neighbor${n===1?'':'s'} joined with your code. `:'No one has used it yet. '}Friends who join with it get their first month free, and so do you.</small></div>`}
+async function copyText(t){try{await navigator.clipboard.writeText(t);return true}catch(e){try{const a=document.createElement('textarea');a.value=t;a.style.cssText='position:fixed;opacity:0';document.body.appendChild(a);a.select();const ok=document.execCommand('copy');a.remove();return ok}catch(x){return false}}}
+async function copyRef(){const c=((DB.users||{})[me.id]||{}).ref;if(!c)return;toast(await copyText(c)?'Code copied: '+c:'Your code is '+c)}
+async function shareRef(){const c=((DB.users||{})[me.id]||{}).ref;if(!c)return;const link=refLink(c),txt=`Join me on ShelfShare, One Shared Shelf. Use my code ${c} and your first month is free.`;
+ if(navigator.share){try{await navigator.share({title:'ShelfShare',text:txt,url:link});return}catch(e){if(e&&e.name==='AbortError')return}}
+ toast(await copyText(txt+' '+link)?'Invite link copied':'Your link: '+link)}
+
 /* ---------- community: clubs + leaderboard ---------- */
 const msgs=cid=>Object.values((DB.clubmsgs||{})[cid]||{}).sort((a,b)=>a.ts-b.ts);
 const lastMsg=cid=>{const m=msgs(cid);return m[m.length-1]};
@@ -666,11 +715,51 @@ function board(metric,range){const U=DB.users||{},ml=myLoc(),rg=RANGES.find(x=>x
  rows.sort((a,b)=>b.score-a.score||a.name.localeCompare(b.name));
  rows.forEach((r,i)=>{r.rank=i&&rows[i-1].score===r.score?rows[i-1].rank:i+1});return rows}
 function leaderboard(){const rows=board(lbM,lbR),mineR=rows.find(r=>r.id===me.id),rg=RANGES.find(x=>x[0]===lbR),ml=myLoc();
- return `<div class="seg"><button class="${lbM==='read'?'on':''}" onclick="lbM='read';draw()">Books read</button><button class="${lbM==='lent'?'on':''}" onclick="lbM='lent';draw()">Books lent</button></div>
+ return `<div class="seg"><button class="${lbM==='read'?'on':''}" onclick="lbM='read';draw()">Read</button><button class="${lbM==='lent'?'on':''}" onclick="lbM='lent';draw()">Lent</button><button class="${lbM==='streak'?'on':''}" onclick="lbM='streak';draw()">Streak</button><button class="${lbM==='pages'?'on':''}" onclick="lbM='pages';draw()">Pages</button></div>
  <div class="row" style="margin-top:0">${RANGES.map(([k,n])=>`<button class="chip ${lbR===k?'on':''}" onclick="lbR='${k}';draw()">${n}</button>`).join('')}</div>
  <p style="color:var(--mut);font-size:13px;margin:-4px 0 12px">${rg[2]?`Readers within ${rg[2]} mi of you.`:`Readers in ${esc((ml&&ml.region)||'your state')}.`}${mineR?` You’re #${mineR.rank} of ${rows.length}.`:''}</p>
- ${rows.map(r=>`<div class="card item lb ${r.id===me.id?'me':''}"><div class="rk r${r.rank}">${r.rank}</div><div class="pa" style="--c:var(--pine)">${esc((r.name||'?')[0])}</div><div><b>${esc(r.name)}${r.id===me.id?' (you)':''}</b><small>${esc(r.place)}</small></div><div class="sc"><b>${r.score}</b><small>${lbM==='read'?'read':'lent'}</small></div></div>`).join('')}
+ ${rows.map(r=>`<div class="card item lb ${r.id===me.id?'me':''}"><div class="rk r${r.rank}">${r.rank}</div><div class="pa" style="--c:var(--pine)">${esc((r.name||'?')[0])}</div><div><b>${esc(r.name)}${r.id===me.id?' (you)':''}</b><small>${esc(r.place)}</small></div><div class="sc"><b>${r.score}</b><small>${{read:'read',lent:'lent',streak:'day streak',pages:'pages'}[lbM]}</small></div></div>`).join('')}
  ${rows.length<2?`<div class="card empty"><b class="serif" style="font-size:16px">You’re the only one here so far</b><p>Mark books as read on your shelf, or lend a book to get on the board. Try a wider range to see more readers.</p></div>`:''}`}
+
+/* ---------- reading streaks + progress ---------- */
+let logOpen=0,logBook='',logPg='',logDay=0;
+const LEVELS=[[0,'New Reader'],[50,'Page Turner'],[200,'Bookworm'],[500,'Night Reader'],[1000,'Shelf Scholar'],[2500,'Library Regular'],[5000,'Bibliophile'],[10000,'Wise Owl'],[25000,'Grand Librarian']];
+const dkey=d=>{const x=new Date(d);return x.getFullYear()+'-'+String(x.getMonth()+1).padStart(2,'0')+'-'+String(x.getDate()).padStart(2,'0')};
+const dayAdd=(k,n)=>{const [y,m,d]=k.split('-').map(Number);return dkey(new Date(y,m-1,d+n,12))};
+function rlOf(id){const u=(DB.users||{})[id]||{};const o=u.rl||{},r={};for(const k in o){const e=o[k];const p=e&&typeof e==='object'?+e.p:+e;if(/^\d{4}-\d{2}-\d{2}$/.test(k)&&p>0)r[k]={p,t:e&&e.t||''}}return r}
+function streakOf(id){const r=rlOf(id),days=Object.keys(r).sort(),t=dkey(Date.now());
+ let best=0,run=0,prev=null;days.forEach(d=>{run=prev&&dayAdd(prev,1)===d?run+1:1;if(run>best)best=run;prev=d});
+ let cur=0,c=r[t]?t:dayAdd(t,-1);while(r[c]){cur++;c=dayAdd(c,-1)}
+ const pages=days.reduce((s,d)=>s+r[d].p,0);
+ return {cur,best,pages,days:days.length,today:!!r[t],log:r}}
+function levelOf(p){let i=0;LEVELS.forEach((l,j)=>{if(p>=l[0])i=j});const nx=LEVELS[i+1];return {n:i+1,name:LEVELS[i][1],from:LEVELS[i][0],next:nx?nx[0]:null,nname:nx?nx[1]:''}}
+function badgesOf(s,read){return [
+ ['📖','First log',s.days>=1],['🔥','3-day streak',s.best>=3],['🔥','7-day streak',s.best>=7],['🌟','30-day streak',s.best>=30],['👑','100-day streak',s.best>=100],
+ ['📄','100 pages',s.pages>=100],['📚','1,000 pages',s.pages>=1000],['🦉','5,000 pages',s.pages>=5000],
+ ['✅','First book',read>=1],['🏅','5 books',read>=5],['🏆','10 books',read>=10]]}
+function weekStrip(s){const t=dkey(Date.now());return `<div class="wk">${[6,5,4,3,2,1,0].map(n=>{const k=dayAdd(t,-n),on=!!s.log[k],x=new Date(...k.split('-').map((v,i)=>i===1?v-1:+v),12);
+ return `<div class="${on?'on':''} ${n===0?'td':''}"><i>${on?'🔥':''}</i><small>${'SMTWTFS'[x.getDay()]}</small></div>`}).join('')}</div>`}
+function streakCard(){const s=streakOf(me.id),lv=levelOf(s.pages),risk=s.cur>0&&!s.today;
+ const pct=lv.next?Math.min(100,(s.pages-lv.from)/(lv.next-lv.from)*100):100;
+ const form=logOpen?`<form class="logf" onsubmit="logGo();return false"><input class="ri" id="lb" list="lbl" maxlength="60" placeholder="Book (pick or type)" value="${esc(logBook)}" oninput="logBook=this.value"><datalist id="lbl">${lib.map(b=>`<option value="${esc(b.t)}">`).join('')}</datalist>
+ <div class="two"><input class="ri" id="lp" type="number" inputmode="numeric" min="1" max="2000" placeholder="Pages read" value="${esc(logPg)}" oninput="logPg=this.value"><div class="seg" style="margin:0"><button type="button" class="${logDay?'':'on'}" onclick="logDay=0;draw()">Today</button><button type="button" class="${logDay?'on':''}" onclick="logDay=1;draw()">Yesterday</button></div></div>
+ <div class="two"><button class="btn acc" type="submit">Save</button><button class="btn ghost" type="button" onclick="logOpen=0;draw()">Cancel</button></div></form>`
+ :`<button class="btn acc" onclick="logOpen=1;draw()">${s.today?'Log more reading':'Log today’s reading'}</button>`;
+ return `<div class="card streak"><div class="item"><div class="flame ${s.cur?'':'cold'}">🔥<b>${s.cur}</b></div><div style="flex:1"><b class="serif" style="font-size:19px">${s.cur?s.cur+'-day streak':'No streak yet'}</b><small>${risk?'Read today to keep it going':s.cur?'You’re on a roll. Longest: '+s.best:'Log some pages to start one'}</small></div></div>
+ ${weekStrip(s)}<div class="lvl"><div class="item" style="gap:6px"><b>Level ${lv.n} · ${lv.name}</b><small style="margin-left:auto">${s.pages.toLocaleString()} pages</small></div><div class="bar2"><i style="width:${pct}%"></i></div>${lv.next?`<small>${(lv.next-s.pages).toLocaleString()} pages to ${lv.nname}</small>`:'<small>Top level reached</small>'}</div>${form}</div>`}
+function logGo(){const p=Math.round(+logPg),t=(logBook||'').replace(/[<>&"`\\$]/g,'').trim().slice(0,60);
+ if(!(p>=1&&p<=2000)){toast('Enter pages read, between 1 and 2000');return}
+ const d=dayAdd(dkey(Date.now()),logDay?-1:0),old=rlOf(me.id)[d],before=streakOf(me.id).cur;
+ dbSet(`users/${me.id}/rl/${d}`,{p:(old?old.p:0)+p,t:t||(old?old.t:'')});
+ const s=streakOf(me.id);logOpen=0;logBook='';logPg='';logDay=0;draw();
+ toast(s.cur>before?`🔥 ${s.cur}-day streak! +${p} pages`:`+${p} pages logged`)}
+function progressView(){const s=streakOf(me.id),st=stats(me.id),lv=levelOf(s.pages),bd=badgesOf(s,st.read),got=bd.filter(b=>b[2]).length;
+ const wk=Object.keys(s.log).filter(k=>k>=dayAdd(dkey(Date.now()),-6)).reduce((a,k)=>a+s.log[k].p,0);
+ const byB={};Object.values(s.log).forEach(e=>{if(e.t)byB[e.t]=(byB[e.t]||0)+e.p});const top=Object.entries(byB).sort((a,b)=>b[1]-a[1])[0];
+ const cell=(v,l)=>`<div class="card sc2"><b>${v}</b><small>${l}</small></div>`;
+ return `<div class="grid2">${cell(s.pages.toLocaleString(),'Total pages')}${cell(st.read,'Books finished')}${cell(s.cur,'Current streak')}${cell(s.best,'Longest streak')}${cell(s.days,'Days read')}${cell(s.days?Math.round(s.pages/s.days):0,'Avg pages / day')}${cell(wk,'Pages this week')}${cell(st.lent,'Books lent')}</div>
+ ${top?`<p style="color:var(--mut);font-size:13px;margin:0 0 12px">Most read: <b>${esc(top[0])}</b> (${top[1].toLocaleString()} pages)</p>`:''}
+ <h3 style="margin:6px 0 8px">Badges <small style="color:var(--mut);font-weight:400">${got} of ${bd.length}</small></h3><div class="bdg">${bd.map(b=>`<div class="${b[2]?'on':''}"><i>${b[0]}</i><small>${b[1]}</small></div>`).join('')}</div>`}
 
 /* ---------- notifications ---------- */
 function notify(){const R=Object.values(DB.requests||{}),cur={};R.forEach(r=>{if(r.to===me.id||r.from===me.id)cur[r.id]=r.status});
@@ -698,14 +787,13 @@ const aMsg=e=>CFG.API_KEY.startsWith('__')?'Setup incomplete: add the Firebase W
 function setMode(m){const e=$('ue');if(e)aemail=e.value;amode=m;draw()}
 function abusyOn(on){abusy=on;const b=$('abtn');if(b){b.disabled=!!on;b.style.opacity=on?.6:1}}
 function onboard(){const up=amode==='up',rs=amode==='reset',f='class="ri" style="width:100%;border-radius:14px;padding:12px"';
- return `<div style="min-height:100%;display:flex;flex-direction:column;justify-content:center"><h1 style="font-size:38px;text-align:center">ShelfShare</h1><p class="tag-l" style="font-size:15px;text-align:center;margin-bottom:18px">One Shared Shelf</p>
- <div class="pair big" style="justify-content:center;margin-bottom:14px">${POOL.slice(0,3).map(b=>cv(b)).join('')}</div>
+ return `<div style="min-height:100%;display:flex;flex-direction:column;justify-content:center"><img class="logo" src="icons/logo.png" width="150" alt="ShelfShare: an open book with a flower growing from it" onerror="this.remove()">
  <div class="seg" style="margin-bottom:6px"><button class="${up?'on':''}" onclick="setMode('up')">Create account</button><button class="${!up?'on':''}" onclick="setMode('in')">Log in</button></div>
  <form onsubmit="event.preventDefault();authGo()" novalidate>
  ${up?`<label class="lbl" for="un" style="margin-top:6px">What should neighbors call you?</label><input id="un" ${f} maxlength="20" placeholder="e.g. Alex" autocomplete="nickname">`:''}
  <label class="lbl" for="ue" style="margin-top:${up?'':'6px'}">Email</label><input id="ue" type="email" inputmode="email" ${f} placeholder="you@example.com" autocomplete="email" autocapitalize="none" value="${esc(aemail)}">
  ${rs?'':`<label class="lbl" for="up">Password${up?' <span style="font-weight:400;color:var(--mut)">(at least 6 characters)</span>':''}</label><input id="up" type="password" ${f} autocomplete="${up?'new-password':'current-password'}"><label style="display:flex;gap:6px;align-items:center;font-size:13px;color:var(--mut);margin-top:6px"><input type="checkbox" onchange="$('up').type=this.checked?'text':'password'"> Show password</label>`}
- ${up?`<label class="lbl" for="ut">Your building or neighborhood <span style="font-weight:400;color:var(--mut)">(optional)</span></label><input id="ut" ${f} maxlength="30" placeholder="e.g. Maple Court Apartments" autocomplete="off"><p id="locline" class="loc"></p>`:''}
+ ${up?`<label class="lbl" for="ut">Your building or neighborhood <span style="font-weight:400;color:var(--mut)">(optional)</span></label><input id="ut" ${f} maxlength="30" placeholder="e.g. Maple Court Apartments" autocomplete="off"><label class="lbl" for="ur">Referral code <span style="font-weight:400;color:var(--mut)">(optional, first month free)</span></label><input id="ur" ${f} maxlength="12" placeholder="e.g. ALEX-7K2Q" autocomplete="off" autocapitalize="characters" value="${esc(refIn)}"><p id="locline" class="loc"></p>`:''}
  <p id="aerr" role="alert" style="color:#a3392b;font-size:13px;min-height:18px;margin:8px 0 0"></p>
  <button id="abtn" class="btn acc" type="submit">${up?'Create account':rs?'Send reset link':'Log in'}</button></form>
  ${amode==='in'?`<button class="back" style="margin:6px auto 0;display:block" onclick="setMode('reset')">Forgot password?</button>`:''}${rs?`<button class="back" style="margin:6px auto 0;display:block" onclick="setMode('in')">‹ Back to log in</button>`:''}
@@ -721,24 +809,26 @@ async function logIn(){const em=emailVal(),pw=pwVal();if(!em)return aerr('Enter 
  catch(e){if(AU&&!me){AU=null;ls.del('ss_auth')}aerr(e.enterMsg||aMsg(e))}abusyOn(0)}
 async function signUp(){const name=cleanName(($('un')||{}).value).slice(0,20),unit=cleanName(($('ut')||{}).value).slice(0,30),em=emailVal(),pw=pwVal();
  if(!name)return aerr('Enter a name neighbors will see.');if(!em)return aerr('Enter your email.');if(pw.length<6)return aerr('Use at least 6 characters for your password.');abusyOn(1);aerr('');
- try{setAuth(await authCall('signUp',{email:em,password:pw,returnSecureToken:true}));ls.set('ss_pn_'+AU.uid,JSON.stringify({name,unit}));await enter(true)}
+ try{setAuth(await authCall('signUp',{email:em,password:pw,returnSecureToken:true}));ls.set('ss_pn_'+AU.uid,JSON.stringify({name,unit,ref:cleanRef(($('ur')||{}).value)}));await enter(true)}
  catch(e){if(AU&&!me){AU=null;ls.del('ss_auth')}aerr(e.enterMsg||aMsg(e))}abusyOn(0)}
 /* the profile (and starter books) live in the database under the account's uid */
-async function makeProfile(name,unit){const U=DB.users||{},loc=await Promise.race([detectLoc(),new Promise(r=>setTimeout(()=>r(LOC||{...PRESETS[0],src:'default'}),6000))]);
+async function makeProfile(name,unit,refCode){const U=DB.users||{},loc=await Promise.race([detectLoc(),new Promise(r=>setTimeout(()=>r(LOC||{...PRESETS[0],src:'default'}),6000))]);
  const held={};Object.values(U).forEach(u=>Object.values(u.books||{}).forEach(b=>held[b.t]=(held[b.t]||0)+1));
  const pick=POOL.map((b,i)=>[b,i]).sort((x,y)=>(held[x[0].t]||0)-(held[y[0].t]||0)||x[1]-y[1]).slice(0,3).map(x=>x[0]),t0=Date.now()*10,books={};
  pick.forEach((b,i)=>books['b'+(t0+i)]={id:t0+i,t:b.t,a:b.a,c:b.c,on:1});
- const rec={name,unit,joined:Date.now(),loc:{lat:loc.lat,lon:loc.lon,city:loc.city||'',region:loc.region||'',cc:loc.cc||'',src:loc.src||'ip'},books};
+ const rb=refCode&&Object.entries(U).find(([id,u])=>u&&u.ref===refCode&&id!==AU.uid);
+ const rec={name,unit,ref:genRef(name,AU.uid,U),joined:Date.now(),loc:{lat:loc.lat,lon:loc.lon,city:loc.city||'',region:loc.region||'',cc:loc.cc||'',src:loc.src||'ip'},books};if(rb)rec.refBy=rb[0];
  if(!(await dbSet('users/'+AU.uid,rec)))throw Object.assign(new Error('profile'),{enterMsg:'Your account was created but we couldn’t save your profile. Log in again to retry.'});return rec}
 async function enter(fresh,silent){await sync(true);
  if(!DBok){const x=new Error('db');x.enterMsg='Signed in, but couldn’t load the neighborhood. Check your connection and try again.';throw x}
  let u=(DB.users||{})[AU.uid],created=false;
  if(!u){let pn={};try{pn=JSON.parse(ls.get('ss_pn_'+AU.uid)||'{}')}catch(e){}
-  const nm=cleanName(pn.name||(AU.email||'').split('@')[0].replace(/[^\p{L}\p{N}]/gu,' ')).slice(0,20)||'Neighbor';u=await makeProfile(nm,cleanName(pn.unit||'').slice(0,30));created=true}
- me={id:AU.uid,name:u.name,unit:u.unit||''};tab='d';curClub=null;await afterLogin();draw();
+  const nm=cleanName(pn.name||(AU.email||'').split('@')[0].replace(/[^\p{L}\p{N}]/gu,' ')).slice(0,20)||'Neighbor';u=await makeProfile(nm,cleanName(pn.unit||'').slice(0,30),cleanRef(pn.ref));created=true;ls.del('ss_ref');if(pn.ref&&!u.refBy)setTimeout(()=>toast('That referral code wasn’t found, but you’re in!'),2600)}
+ me={id:AU.uid,name:u.name,unit:u.unit||''};tab=(fresh||created)?'plan':'d';planSt=0;curClub=null;await afterLogin();draw();
  if(!silent)toast(fresh||created?`Welcome, ${me.name}. Three books are now on your shelf`:`Welcome back, ${me.name}`)}
 async function afterLogin(){rebuild();
  if(!myLoc()){const l=LOC||await detectLoc();dbSet(`users/${me.id}/loc`,l)}
+ if(!((DB.users||{})[me.id]||{}).ref)dbSet(`users/${me.id}/ref`,genRef(me.name,me.id,DB.users));
  rebuild();ensureClubs();
  let ts=[];try{ts=JSON.parse(ls.get('ss_ts_'+me.id)||'[]')}catch(e){}tseen=new Set(ts);tnote=new Set(tItems().map(i=>i.key));seen=null;upd=0;notify()}
 function signOut(msg){ls.del('ss_auth');ls.del('ss_me');AU=null;me=null;DB={};last='';DBok=false;seen=null;tseen=null;tnote=null;tab='d';asec='share';csec='clubs';curClub=null;ropen=null;upd=0;amode='in';draw();if(typeof msg==='string')toast(msg)}
@@ -754,11 +844,11 @@ async function sync(force){if(pend||!AU)return;const w0=wver;let d;try{d=scrub(a
 
 /* ---------- shell ---------- */
 const TABS=[['d','Discover'],['f','Feed'],['s','Add'],['u','Community'],['p','Me']];
-function tabs(){const bar=$('bar');if(!me){$('tabs').innerHTML='';bar.style.display='none';return}const b=badge();
+function tabs(){const bar=$('bar');if(!me||tab==='plan'){$('tabs').innerHTML='';bar.style.display='none';return}const b=badge();
  bar.style.display=(tab==='u'&&curClub)?'none':'flex';
- bar.innerHTML=`<span class="wm">ShelfShare</span><button class="bell ${tab==='a'?'on':''}" aria-label="Activity and notifications${b?', '+b+' new':''}" onclick="go('a')">${ic('a')}${b?`<b class="dot">${b}</b>`:''}</button>`;
+ bar.innerHTML=`<span class="wm"><img src="icons/logo-256.png" width="34" height="31" alt="" onerror="this.remove()">ShelfShare</span><button class="bell ${tab==='a'?'on':''}" aria-label="Activity and notifications${b?', '+b+' new':''}" onclick="go('a')">${ic('a')}${b?`<b class="dot">${b}</b>`:''}</button>`;
  $('tabs').innerHTML=TABS.map(([k,n])=>k==='s'?`<button class="scan" onclick="go('s')"><span>${ic('s')}</span>${n}</button>`:`<button class="${tab===k||(tab==='detail'&&k==='d')||(tab==='post'&&k==='f')?'on':''}" onclick="go('${k}')">${ic(k)}${n}</button>`).join('')}
-const VIEWS={d:discover,detail,f:feed,post:compose,s:scan,u:community,a:activity,p:profile};
+const VIEWS={d:discover,detail,f:feed,post:compose,s:scan,u:community,a:activity,p:profile,plan:planView};
 function draw(){const s=$('screen');s.className=(me&&tab==='u'&&curClub)?'flush':'';
  if(!me){camStop();s.innerHTML=onboard();$('tabs').innerHTML='';showLoc();detectLoc();return}
  s.innerHTML=VIEWS[tab]();tabs();if(tab==='u'&&curClub)afterChat();if(tab==='s'&&scanSt===0)setTimeout(camStart,0);else camStop()}
