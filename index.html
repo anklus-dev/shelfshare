@@ -101,40 +101,89 @@ input[type=number]{width:80px;border:1px solid var(--line);border-radius:10px;pa
 .rp{background:var(--bg);border-radius:12px;padding:8px 12px;margin-top:8px;font-size:14px}.rp b{margin-right:4px}
 .ri{flex:1;min-width:0;border:1px solid var(--line);border-radius:99px;padding:8px 14px;font:inherit;background:var(--card);color:var(--ink)}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
+.loc{font-size:13px;color:var(--mut);margin:12px 0 0;text-align:center;line-height:1.7}.loc svg{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:1.8;vertical-align:-2px}
+.tabs button{padding:4px 2px}
+.cl{cursor:pointer}.cav{width:46px;height:46px;border-radius:14px;background:var(--pinebg);color:var(--pine);display:grid;place-items:center;font:700 16px Fraunces,Georgia,serif;flex:none}
+.cl .pv{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.chat{position:absolute;inset:0;display:flex;flex-direction:column}
+.chat .hd{display:flex;gap:10px;align-items:center;padding:12px 14px;border-bottom:1px solid var(--line);background:var(--card)}
+#msgs{flex:1;min-height:0;overflow-y:auto;padding:12px 14px}.cdesc{color:var(--mut);font-size:13px;text-align:center;margin-bottom:10px}
+.msg{margin-bottom:10px;max-width:84%}.msg small{color:var(--mut);font-size:11px;display:block;margin-bottom:2px}
+.bub{background:var(--card);border:1px solid var(--line);border-radius:16px 16px 16px 4px;padding:8px 12px;overflow-wrap:anywhere}
+.msg.me{margin-left:auto}.msg.me small{text-align:right}.msg.me .bub{background:var(--acc);color:var(--accink);border-color:var(--acc);border-radius:16px 16px 4px 16px}
+.sys{background:var(--pinebg);border-radius:14px;padding:10px 12px;font-size:13px;margin-bottom:10px}
+.cmp{display:flex;gap:8px;align-items:center;padding:10px 12px;border-top:1px solid var(--line);background:var(--card)}
+.lb>div:nth-child(2){flex:none}.lb>div:nth-child(3){flex:1;min-width:0}
+.lb .rk{width:28px;height:28px;border-radius:50%;background:var(--line);display:grid;place-items:center;font-weight:700;font-size:13px;flex:none}
+.rk.r1{background:var(--acc);color:var(--accink)}.rk.r2{background:#C9C1B6;color:#2B1D14}.rk.r3{background:#B98A5E;color:#2a1500}
+.lb .pa{width:34px;height:34px;font-size:14px}.lb.me{border:2px solid var(--acc)}
+.lb .sc{text-align:right;flex:none}.lb .sc b{font:700 20px Fraunces,Georgia,serif;display:block;line-height:1}.lb .sc small{color:var(--mut)}
+.reps{margin-top:8px}
+select.ri{border-radius:12px;width:100%;margin-top:6px}
+.empty{text-align:center;padding:22px 16px}.empty p{color:var(--mut);margin:6px 0 0}
+.chip svg{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
 </style></head><body>
 <div id="app"><main id="screen"></main><nav class="tabs" id="tabs"></nav></div>
 <script>
-const CFG={FIREBASE_URL:'https://shelfshare-11e68-default-rtdb.firebaseio.com/'}; // To go live, paste your Firebase Realtime Database URL between the quotes (see README.md)
+const CFG={FIREBASE_URL:'https://shelfshare-11e68-default-rtdb.firebaseio.com/'}; // Firebase Realtime Database URL (see README.md)
 const LIVE=!!CFG.FIREBASE_URL,BASE=CFG.FIREBASE_URL.replace(/\/$/,'');
-let DB={},me=null,last='',pend=0,DBok=false,seen=null,fakeLent={},mem={};
+let DB={},me=null,last='',pend=0,wver=0,DBok=false,seen=null,mem={},LOC=null,locP=null,locSt='idle';
 const ls={get(k){try{return localStorage.getItem(k)}catch(e){return mem[k]||null}},set(k,v){try{localStorage.setItem(k,v)}catch(e){mem[k]=v}},del(k){try{localStorage.removeItem(k)}catch(e){delete mem[k]}}};
-const scrub=d=>JSON.parse(JSON.stringify(d||{}),(k,v)=>typeof v==='string'?v.replace(/[<>&"`\\$]/g,''):v);
+const IDK=new Set(['id','bookId','uid','from','to','lender','swapOf','tid']); // id-like fields end up inside inline handlers, so only safe characters survive
+const scrub=d=>JSON.parse(JSON.stringify(d||{}),(k,v)=>typeof v!=='string'?v:IDK.has(k)?v.replace(/[^\p{L}\p{N}_-]/gu,''):v.replace(/[<>"`\\]/g,''));
 const setIn=(o,p,v)=>{const a=p.split('/');let c=o;a.slice(0,-1).forEach(k=>c=c[k]=c[k]||{});if(v===null)delete c[a[a.length-1]];else c[a[a.length-1]]=v};
 async function load(){if(LIVE){const r=await fetch(BASE+'/ss.json');if(!r.ok)throw 0;return (await r.json())||{}}return JSON.parse(ls.get('ss_db')||'{}')||{}}
 async function save(p,v){pend++;try{if(LIVE){await fetch(`${BASE}/ss/${encodeURI(p)}.json`,{method:'PUT',body:JSON.stringify(v)})}else{const d=JSON.parse(ls.get('ss_db')||'{}')||{};setIn(d,p,v);ls.set('ss_db',JSON.stringify(d))}}catch(e){}pend--}
-function dbSet(p,v){setIn(DB,p,v);return save(p,v)}
+function dbSet(p,v){wver++;setIn(DB,p,v);return save(p,v)}
+
+/* ---------- helpers ---------- */
+const $=s=>document.getElementById(s);
+const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+const slug=s=>String(s||'').toLowerCase().replace(/[^\p{L}\p{N}]+/gu,'-').replace(/^-|-$/g,'');
+const key=s=>slug(s)||'x';
+const ago=ts=>{const s=Math.max(0,(Date.now()-(ts||0))/1000);return s<60?'now':s<3600?Math.floor(s/60)+'m':s<86400?Math.floor(s/3600)+'h':Math.floor(s/86400)+'d'};
+const dl=n=>n===1?'1 day':n+' days';
+const rad=x=>x*Math.PI/180;
+const dist=(a,b)=>{if(!a||!b||a.lat==null||b.lat==null)return null;const R=3958.8,dA=rad(b.lat-a.lat),dO=rad(b.lon-a.lon);const h=Math.sin(dA/2)**2+Math.cos(rad(a.lat))*Math.cos(rad(b.lat))*Math.sin(dO/2)**2;return 2*R*Math.asin(Math.sqrt(h))};
+const fmtD=m=>m==null?'Distance unknown':m<0.3?'Nearby':m<10?m.toFixed(1)+' mi':Math.round(m)+' mi';
+const away=m=>m==null?'Location unknown':m<0.3?'Right nearby':fmtD(m)+' away';
+const r2=n=>Math.round(n*100)/100;
+const myLoc=()=>((DB.users||{})[me&&me.id]||{}).loc;
+const initials=s=>String(s||'?').split(/\s+/).filter(Boolean).slice(0,2).map(w=>w[0]).join('').toUpperCase();
+
+/* ---------- location (rounded to ~1 km before it is ever stored) ---------- */
+const PRESETS=[{city:'Atlanta',region:'Georgia',cc:'US',lat:33.75,lon:-84.39},{city:'Decatur',region:'Georgia',cc:'US',lat:33.77,lon:-84.30},{city:'Marietta',region:'Georgia',cc:'US',lat:33.95,lon:-84.55},{city:'Covington',region:'Georgia',cc:'US',lat:33.60,lon:-83.86},{city:'Athens',region:'Georgia',cc:'US',lat:33.96,lon:-83.38},{city:'Macon',region:'Georgia',cc:'US',lat:32.84,lon:-83.63},{city:'Augusta',region:'Georgia',cc:'US',lat:33.47,lon:-81.97},{city:'Savannah',region:'Georgia',cc:'US',lat:32.08,lon:-81.09}];
+const mk=(lat,lon,city,region,cc,src)=>({lat:r2(+lat),lon:r2(+lon),city:String(city||'').slice(0,40),region:String(region||'').slice(0,40),cc:String(cc||'').slice(0,3),src});
+const getJ=(url,ms=4500)=>{const c=new AbortController(),t=setTimeout(()=>c.abort(),ms);return fetch(url,{signal:c.signal}).then(r=>{clearTimeout(t);if(!r.ok)throw 0;return r.json()}).catch(e=>{clearTimeout(t);throw e})};
+async function ipLoc(){
+ const tries=[
+  async()=>{const j=await getJ('https://ipwho.is/');if(!j||j.success===false||j.latitude==null)throw 0;return mk(j.latitude,j.longitude,j.city,j.region,j.country_code,'ip')},
+  async()=>{const j=await getJ('https://get.geojs.io/v1/ip/geo.json');if(!j||j.latitude==null)throw 0;return mk(j.latitude,j.longitude,j.city,j.region,j.country_code,'ip')},
+  async()=>{const j=await getJ('https://ipapi.co/json/');if(!j||j.latitude==null)throw 0;return mk(j.latitude,j.longitude,j.city,j.region,j.country_code,'ip')}];
+ for(const f of tries){try{return await f()}catch(e){}}
+ return null}
+function gpsLoc(){return new Promise((res,rej)=>{if(!navigator.geolocation)return rej(0);navigator.geolocation.getCurrentPosition(async p=>{const la=p.coords.latitude,lo=p.coords.longitude;let city='',region='',cc='';
+ try{const j=await getJ(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${la}&longitude=${lo}&localityLanguage=en`);city=j.city||j.locality||'';region=j.principalSubdivision||'';cc=j.countryCode||''}catch(e){}
+ res(mk(la,lo,city,region,cc,'gps'))},()=>rej(0),{timeout:8000,maximumAge:600000})})}
+const locLabel=l=>l?([l.city,l.region].filter(Boolean).join(', ')||'your area'):'';
+
+/* ---------- app state ---------- */
+let lib=[],want=[],near=[],asec='share',csec='clubs',curClub=null,ropen=null,rng=30,pop=0,tab='d',filt='all',seg='mine',det=null,scanSt=0,upd=0,newB=null,lbM='read',lbR='town',tseen=null,tnote=null,lastMsgHtml='';
+let pc={b:0,mode:'Page',n:112,txt:'I can’t believe I waited this long to read it. The opening hooked me instantly.',sp:0};
+const STL={pending:'Waiting',approved:'Accepted',declined:'Declined',returned:'Returned'};
+const RANGES=[['hood','Neighborhood',3],['town','Town',10],['city','City',30],['state','State',null]];
+const KIND={building:'Building',hood:'Neighborhood',town:'Town',city:'City',state:'Statewide',custom:'Community'};
+const daysLeft=r=>Math.max(1,14+(r.ext||0)-Math.floor((Date.now()-(r.appTs||Date.now()))/864e5));
+const thoughtsArr=()=>Object.values(DB.thoughts||{}).sort((a,b)=>b.ts-a.ts);
+const nLikes=t=>Object.keys(t.likes||{}).length;
+const reps=t=>Object.values(t.replies||{}).sort((a,b)=>a.ts-b.ts);
+const inWant=t=>want.some(w=>slug(w)===slug(t));
+const isRead=t=>!!((((DB.users||{})[me.id]||{}).read||{})[key(t)]);
+
 const POOL=[{t:'The Odyssey',a:'Homer',c:'#7A4B2A'},{t:'Pride and Prejudice',a:'Jane Austen',c:'#8C4A5A'},{t:'1984',a:'George Orwell',c:'#8A3B2E'},{t:'Frankenstein',a:'Mary Shelley',c:'#4E5B3A'},{t:'The Great Gatsby',a:'F. Scott Fitzgerald',c:'#B07A2A'},{t:'Moby-Dick',a:'Herman Melville',c:'#6A5A44'},{t:'Romeo and Juliet',a:'William Shakespeare',c:'#9A4A3A'},{t:'Alice in Wonderland',a:'Lewis Carroll',c:'#8A5A6A'},{t:'Jane Eyre',a:'Charlotte Brontë',c:'#6A4A3A'},{t:'Dracula',a:'Bram Stoker',c:'#5A2A2A'},{t:'Great Expectations',a:'Charles Dickens',c:'#7A5A3A'},{t:'Little Women',a:'Louisa May Alcott',c:'#9A6A4A'}];
 const auto=t=>{const h=([...t].reduce((a,c)=>(a*31+c.charCodeAt(0))|0,7))>>>0;return ['<circle cx="64" cy="90" r="20" fill="#fff" opacity=".8"/><path d="M0 150V118q50-24 100 0v32z" fill="#00000050"/>','<path d="M18 150V84M38 150V72M58 150V86M78 150V76" stroke="#fff" stroke-width="6" opacity=".6"/>','<path d="M22 150V100a28 28 0 0 1 56 0v50z" fill="#ffffff40"/><path d="M0 142h100v8H0z" fill="#00000050"/>','<circle cx="30" cy="104" r="12" fill="#fff" opacity=".7"/><circle cx="56" cy="92" r="9" fill="#fff" opacity=".5"/><circle cx="76" cy="112" r="14" fill="#fff" opacity=".35"/>'][h%4]};
-const I={d:'<circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>',s:'<path d="M4 8V5h3M17 5h3v3M20 16v3h-3M7 19H4v-3M4 12h16"/>',f:'<rect x="4" y="3" width="16" height="18" rx="3"/><path d="m10 9 5 3-5 3z"/>',a:'<path d="M18 8a6 6 0 0 0-12 0c0 7-3 8-3 8h18s-3-1-3-8M10 20a2 2 0 0 0 4 0"/>',p:'<circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/>',h:'<path d="M12 20s-8-5-8-11a4.5 4.5 0 0 1 8-2.8A4.5 4.5 0 0 1 20 9c0 6-8 11-8 11z"/>',c:'<path d="M20 12a8 8 0 0 1-11.5 7.2L4 20l1-4.2A8 8 0 1 1 20 12z"/>',b:'<path d="M5 4v16M10 4v16M15 5l4 15"/>'};
-let lib=[];
-let want=['Piranesi','Braiding Sweetgrass','Klara and the Sun'];
-const seedNear=[
-{id:1,t:'Piranesi',a:'Susanna Clarke',c:'#5B4B3A',o:'Maya',w:'Unit 3B',d:'Your building',b:1,swap:1},
-{id:2,t:'Braiding Sweetgrass',a:'Robin Wall Kimmerer',c:'#7A8541',o:'Rosa',w:'Unit 2A',d:'Your building',b:1},
-{id:3,t:'Project Hail Mary',a:'Andy Weir',c:'#C1502E',o:'Dev',w:'Maple St',d:'0.4 mi'},
-{id:4,t:'Parable of the Sower',a:'Octavia Butler',c:'#8A3B3B',o:'Maya',w:'Unit 3B',d:'Your building',b:1},
-{id:5,t:'The Overstory',a:'Richard Powers',c:'#4E6B3E',o:'Jon',w:'Pine Ct',d:'0.5 mi'},
-{id:6,t:'Klara and the Sun',a:'Kazuo Ishiguro',c:'#B88A2E',o:'Dev',w:'Maple St',d:'0.4 mi'},
-{id:7,t:'Sapiens',a:'Yuval Noah Harari',c:'#8A5A44',o:'Priya',w:'Oakdale',d:'12 mi'},
-{id:8,t:'Gilead',a:'Marilynne Robinson',c:'#7B6B3A',o:'Tom',w:'Riverton',d:'27 mi'},
-{id:9,t:'Middlemarch',a:'George Eliot',c:'#A0525C',o:'Lena',w:'Fairview',d:'44 mi'}];
-let near=seedNear;
-let th=[];
-let act=[];
-let reading=[];
-let loans=[];
-let asec='share',ropen=null,rng=30,pop=0,tab='d',filt='all',seg='mine',det=null,scanSt=0,unread=0,tid=10,pc={b:0,mode:'Page',n:112,txt:'I can’t believe I waited this long to read it. The opening hooked me instantly.',sp:0};
-const $=s=>document.getElementById(s),esc=s=>s.replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+const I={d:'<circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>',s:'<path d="M4 8V5h3M17 5h3v3M20 16v3h-3M7 19H4v-3M4 12h16"/>',f:'<rect x="4" y="3" width="16" height="18" rx="3"/><path d="m10 9 5 3-5 3z"/>',a:'<path d="M18 8a6 6 0 0 0-12 0c0 7-3 8-3 8h18s-3-1-3-8M10 20a2 2 0 0 0 4 0"/>',p:'<circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/>',h:'<path d="M12 20s-8-5-8-11a4.5 4.5 0 0 1 8-2.8A4.5 4.5 0 0 1 20 9c0 6-8 11-8 11z"/>',c:'<path d="M20 12a8 8 0 0 1-11.5 7.2L4 20l1-4.2A8 8 0 1 1 20 12z"/>',b:'<path d="M5 4v16M10 4v16M15 5l4 15"/>',u:'<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c0-3.5 3-5.5 6.5-5.5s6.5 2 6.5 5.5"/><circle cx="17.5" cy="9" r="2.5"/><path d="M17 14.5c2.5 0 4.5 1.5 4.5 4.5"/>',pin:'<path d="M12 21s-6-5.5-6-11a6 6 0 0 1 12 0c0 5.5-6 11-6 11z"/><circle cx="12" cy="10" r="2"/>'};
 const ART={
 'The Odyssey':'<path d="M28 118h44l-7 13H35z" fill="#fff" opacity=".9"/><path d="M50 116V66l24 44z" fill="#fff" opacity=".8"/><path d="M0 132q12-7 25 0t25 0 25 0 25 0v18H0z" fill="#00000055"/>',
 'Dune':'<circle cx="70" cy="85" r="18" fill="#f6d27a"/><path d="M0 150V115q30-30 60-8t40-12v55z" fill="#00000040"/><path d="M0 150V130q35-25 70-5t30-5v30z" fill="#00000055"/>',
@@ -151,130 +200,294 @@ const ART={
 'Gilead':'<path d="M0 150v-20h100v20z" fill="#00000040"/><path d="M50 135V92" stroke="#f6e3a3" stroke-width="2"/><path d="M50 104q-10-8-8-18q10 4 8 18zM50 104q10-8 8-18q-10 4-8 18zM50 92q-8-8-6-17q8 4 6 17zM50 92q8-8 6-17q-8 4-6 17z" fill="#f6e3a3"/>',
 'Station Eleven':'<path d="M0 150V112l12 8 12-8 12 8 12-8 12 8 12-8 12 8 16-8v38z" fill="#00000050"/><circle cx="70" cy="82" r="3" fill="#fff"/><circle cx="30" cy="96" r="2" fill="#fff"/><circle cx="50" cy="72" r="1.5" fill="#fff"/>',
 'Middlemarch':'<rect x="18" y="82" width="26" height="46" rx="13" fill="#ffe9b0" opacity=".85"/><rect x="56" y="82" width="26" height="46" rx="13" fill="#ffe9b0" opacity=".5"/><path d="M0 134h100v16H0z" fill="#00000050"/>'};
-const cv=(b,x='')=>`<div class="cover ${x}" style="--c:${b.c}"><svg class="art" viewBox="0 0 100 150" preserveAspectRatio="xMidYMid slice" aria-hidden="true">${ART[b.t]||auto(b.t)}</svg><span>${b.t}</span><i>${b.a||''}</i></div>`;
+const cv=(b,x='')=>`<div class="cover ${x}" style="--c:${esc(b.c)}"><svg class="art" viewBox="0 0 100 150" preserveAspectRatio="xMidYMid slice" aria-hidden="true">${ART[b.t]||auto(b.t)}</svg><span>${esc(b.t)}</span><i>${esc(b.a||'')}</i></div>`;
 const ic=k=>`<svg viewBox="0 0 24 24">${I[k]}</svg>`;
 function toast(m){document.querySelectorAll('.toast').forEach(e=>e.remove());const t=document.createElement('div');t.className='toast';t.textContent=m;$('app').appendChild(t);setTimeout(()=>t.remove(),2800)}
-function go(t,d){tab=t;det=d||null;if(t==='a')unread=0;scanSt=0;draw();$('screen').scrollTop=0}
-function refresh(){tab==='a'?draw():tabs()}
-const mi=b=>b.b?0:parseFloat(b.d);
-function popup(){return `<div class="scrim" onclick="pop=0;draw()"><div class="sheet" onclick="event.stopPropagation()"><b class="serif" style="font-size:18px">Search range</b><p style="color:var(--mut);font-size:13px;margin-top:2px">Show books from neighbors within this distance.</p><div class="row" style="margin:12px 0 4px">${[1,10,30,50].map(n=>`<button class="chip ${rng===n?'on':''}" onclick="rng=${n};draw()">${n} mi</button>`).join('')}</div><button class="btn acc" onclick="pop=0;draw()">Show ${near.filter(b=>mi(b)<=rng).length} books</button></div></div>`}
+
+/* ---------- navigation ---------- */
+function go(t,d){tab=t;det=d||null;if(t==='a')upd=0;if(t==='u')curClub=null;scanSt=0;draw();$('screen').scrollTop=0}
+
+/* ---------- derived data ---------- */
+function rebuild(){
+ const U=DB.users||{},R=Object.values(DB.requests||{}),meU=U[me.id]||{},ml=meU.loc,su=slug(meU.unit||'');
+ const lentIds=new Set(R.filter(r=>r.status==='approved').map(r=>r.bookId));
+ lib=Object.values(meU.books||{}).sort((x,y)=>x.id-y.id).map(b=>{const r=R.find(r=>r.bookId===b.id&&r.status==='approved');return {...b,lent:r&&r.fromName,due:r&&daysLeft(r),rid:r&&r.id,read:isRead(b.t)}});
+ want=Object.values(meU.want||{});
+ near=[];
+ Object.entries(U).forEach(([id,u])=>{if(id===me.id)return;const d=dist(ml,u.loc),inB=!!su&&su===slug(u.unit||'')&&(d==null||d<2);
+  Object.values(u.books||{}).forEach(b=>{if(!b.on||lentIds.has(b.id))return;near.push({id:b.id,t:b.t,a:b.a,c:b.c,o:u.name,w:u.unit||(u.loc&&u.loc.city)||'Nearby',mi:d==null?9999:d,d:away(d),b:inB?1:0,uid:id})})});
+ near.sort((x,y)=>x.mi-y.mi||x.t.localeCompare(y.t))}
+function swapFor(b){ // one of my available books that b's owner wants, if I want b
+ if(!inWant(b.t))return null;const ou=(DB.users||{})[b.uid];if(!ou)return null;const ow=Object.values(ou.want||{}).map(slug);
+ return lib.find(x=>x.on&&!x.lent&&ow.includes(slug(x.t)))||null}
+const asked=b=>Object.values(DB.requests||{}).some(r=>r.from===me.id&&r.bookId===b.id&&(r.status==='pending'||r.status==='approved'));
+
+/* ---------- discover ---------- */
+function popup(){return `<div class="scrim" onclick="pop=0;draw()"><div class="sheet" onclick="event.stopPropagation()"><b class="serif" style="font-size:18px">Search range</b><p style="color:var(--mut);font-size:13px;margin-top:2px">Show books from neighbors within this distance.</p><div class="row" style="margin:12px 0 4px">${[1,10,30,50].map(n=>`<button class="chip ${rng===n?'on':''}" onclick="rng=${n};draw()">${n} mi</button>`).join('')}</div><button class="btn acc" onclick="pop=0;draw()">Show ${near.filter(b=>b.mi<=rng).length} books</button></div></div>`}
 function discover(){
- const l=near.filter(b=>mi(b)<=rng&&(filt==='all'||(filt==='b'&&b.b)||(filt==='n'&&!b.b)));
- return `<div class="top"><div><h1>ShelfShare</h1><div class="tag-l">One Shared Shelf</div></div><button class="chip" onclick="pop=1;draw()" aria-label="Change search range">Within ${rng} mi ▾</button></div>${pop?popup():''}
- <button class="match" onclick="go('detail',1)"><div class="pair">${cv(near[0])}${cv(lib[0])}</div><div><b>Swap match with Maya</b>She has Piranesi, which you want. You have ${lib[0].t}, which she wants.</div></button>
+ const l=near.filter(b=>b.mi<=rng&&(filt==='all'||(filt==='b'&&b.b)||(filt==='n'&&!b.b))),ml=myLoc();
+ let m=null;for(const b of near){if(b.mi>rng)continue;const mine=swapFor(b);if(mine){m={b,mine};break}}
+ return `<div class="top"><div><h1>ShelfShare</h1><div class="tag-l">One Shared Shelf${ml&&ml.city?' · Near '+esc(ml.city):''}</div></div><button class="chip" onclick="pop=1;draw()" aria-label="Change search range">Within ${rng} mi ▾</button></div>${pop?popup():''}
+ ${m?`<button class="match" onclick="go('detail',${m.b.id})"><div class="pair">${cv(m.b)}${cv(m.mine)}</div><div><b>Swap match with ${esc(m.b.o)}</b>${esc(m.b.o)} has ${esc(m.b.t)}, which you want. You have ${esc(m.mine.t)}, which ${esc(m.b.o)} wants.</div></button>`:''}
  <div class="row">${[['all','All nearby'],['b','My building'],['n','Outside my building']].map(([k,n])=>`<button class="chip ${filt===k?'on':''}" onclick="filt='${k}';draw()">${n}</button>`).join('')}</div>
- <div class="grid">${l.map(b=>`<button class="bk" onclick="go('detail',${b.id})">${cv(b)}<p>${b.t}</p><small>${b.o} · ${b.w}</small><small>${b.d}</small></button>`).join('')}</div>`}
+ ${l.length?`<div class="grid">${l.map(b=>`<button class="bk" onclick="go('detail',${b.id})">${cv(b)}<p>${esc(b.t)}</p><small>${esc(b.o)} · ${esc(b.w)}</small><small>${b.b?'In your building':esc(b.d)}</small></button>`).join('')}</div>`
+ :`<div class="card empty"><b class="serif" style="font-size:18px">No books within ${rng} mi yet</b><p>${near.length?'Widen your range to see books from farther away.':'You’re the first one here. Neighbors who join will show up automatically.'}</p>${near.length?'<button class="btn acc" onclick="pop=1;draw()">Change range</button>':''}</div>`}`}
 function detail(){
- const b=near.find(x=>x.id===det),mine=lib[0],done=asked(b),tt=th.filter(t=>t.book===b.t);
+ const b=near.find(x=>x.id===det);
+ if(!b)return `<button class="back" onclick="go('d')">‹ Back to discover</button><p style="color:var(--mut)">This book isn’t available right now.</p>`;
+ const done=asked(b),mine=swapFor(b),tt=thoughtsArr().filter(t=>slug(t.t)===slug(b.t)).slice(0,3);
  return `<button class="back" onclick="go('d')">‹ Back to discover</button>
- <div class="hero">${cv(b)}<div><h2 style="font-size:24px;line-height:1.1">${b.t}</h2><p style="color:var(--mut);margin:4px 0 10px">${b.a}</p><span class="tag">Available</span><p style="margin-top:12px"><b>${b.o}</b><br><span style="color:var(--mut)">${b.w} · ${b.d}</span></p></div></div>
- ${b.swap&&!done?`<div class="swap"><b class="serif" style="font-size:17px">You can swap</b><p style="font-size:13px;margin-top:2px">${b.t} is on your want list, and ${b.o} wants ${mine.t}.</p><div class="pair">${cv(mine)}<span style="font-size:22px">⇄</span>${cv(b)}</div><button class="btn acc" onclick="req(${b.id},1)">Propose swap</button></div>`:''}
- ${done?`<p class="tag" style="padding:10px 14px">Request sent to ${b.o}. Check Activity for updates.</p>`:`<button class="btn ${b.swap?'ghost':''}" onclick="req(${b.id},0)">${b.swap?'Borrow without swapping':'Request to borrow'}</button>`}
- ${tt.length?`<h3 style="margin:18px 0 8px">What neighbors think</h3>`+tt.map(t=>`<div class="card"><b>${t.who}</b> <small style="color:var(--mut)">${t.loc}</small><p class="q">${t.spoil?'Spoiler hidden. Open the feed to reveal.':t.txt}</p></div>`).join(''):''}`}
-function req(id,sw){const b=near.find(x=>x.id===id);if(b.real)return realReq(b);const e={k:'out',t:sw?`Swap proposed: ${lib[0].t} for ${b.t}`:`You asked ${b.o} to borrow ${b.t}`,s:'Waiting',b:b.t};act.unshift(e);asec='share';go('a');toast(sw?'Swap proposed to '+b.o:'Request sent to '+b.o);
- setTimeout(()=>{e.s='Accepted';loans.unshift({t:b.t,a:b.a,c:b.c,from:b.o,days:14,total:14});e.t=sw?`${b.o} accepted. Swap in the lobby, Saturday 10am`:`${b.o} said yes. Pick up from ${b.w} today`;unread++;refresh()},3200)}
-function approve(i){const a=act[i];a.s='Approved';const bk=lib[2]||lib[0];a.t=`You’re lending ${bk.t} to Dev. Meet at Maple St`;fakeLent[bk.id]={who:'Dev',due:14};rebuild();draw();toast(`Dev has been told. ${bk.t} is marked as lent`);
- setTimeout(()=>{const id=++tid;th.unshift({id,who:'Dev',book:bk.t,c:bk.c,loc:'Ch. 3',txt:'Day one with your copy and I’m already hooked. Thanks so much for the lend!',likes:3,lent:1});act.unshift({k:'th',t:`Dev shared a thought on your copy of ${bk.t}`,s:'New',tid:id,fresh:1});unread++;refresh();toast(`Dev shared a thought on your copy of ${bk.t}`)},3500)}
-function feed(){return `<div class="fh"><h1 style="font-size:28px">Feed</h1><button class="chip on" onclick="go('post')">+ Add thought</button></div>`+th.map(t=>{const bk=[...lib,...near].find(b=>b.t===t.book)||{t:t.book,c:t.c},nb=near.find(b=>b.t===t.book);return `<article class="post ${t.spoil?'blur':''}" id="r${t.id}" style="--c:${t.c}"><div class="ph"><div class="pa">${t.who[0]}</div><div><b>${t.who}</b><small>${t.book} · ${t.loc}</small></div>${t.lent?'<span class="tag" style="background:var(--acc);color:var(--accink)">On your copy</span>':''}</div>
- <div class="stage">${cv(bk)}</div><blockquote class="pq" onclick="this.parentNode.classList.remove('blur')">${esc(t.txt)}</blockquote><p class="rv">Spoiler hidden. Tap to reveal.</p>
- <div class="acts"><button class="lk ${t.liked?'on':''}" aria-label="Like" onclick="like(${t.id},this)">${ic('h')}<span>${t.likes}</span></button><button aria-label="Replies" onclick="${t.lent?`ropen=${t.id};seg='th';go('p')`:`toast('Replies open on books you lend or borrow')`}">${ic('c')}<span>${t.who==='You'?2:Math.ceil(t.likes/6)}</span></button>${nb?`<button class="sub" aria-label="Options for ${nb.t}" onclick="sheet(${nb.id})"><span class="pa">${nb.o[0]}</span><span class="tx"><b>${nb.o}${nb.o===t.who?' has':' also has'} this book</b><small>${nb.b?'In your building':nb.d+' away'}</small></span><span class="ch">›</span></button>`:''}</div></article>`}).join('')}
-function like(id,el){const t=th.find(x=>x.id===id);t.liked=!t.liked;t.likes+=t.liked?1:-1;el.classList.toggle('on',t.liked);el.querySelector('span').textContent=t.likes}
-function compose(){const r=reading[pc.b];return `<button class="back" onclick="go('f')">‹ Cancel</button><div class="top"><h1>Share a thought</h1></div>
- <div class="lbl" style="margin-top:0">Which book?</div><div class="row" style="margin:0">${reading.map((x,i)=>`<button class="chip ${pc.b===i?'on':''}" onclick="pc.b=${i};draw()">${x.t}</button>`).join('')}</div>
- <div class="lbl">Where are you?</div><div class="two" style="align-items:center"><div class="seg" style="margin:0;flex:1">${['Page','Chapter'].map(m=>`<button class="${pc.mode===m?'on':''}" onclick="pc.mode='${m}';draw()">${m}</button>`).join('')}</div><input type="number" min="1" value="${pc.n}" aria-label="${pc.mode} number" oninput="pc.n=this.value"></div>
- <div class="lbl">Your thought</div><textarea oninput="pc.txt=this.value" aria-label="Your thought">${esc(pc.txt)}</textarea>
- <div class="item" style="margin-top:12px"><div style="flex:1"><b>Hide behind a spoiler warning</b></div><button class="sw ${pc.sp?'on':''}" aria-label="Spoiler warning" onclick="pc.sp=!pc.sp;draw()"></button></div>
- <p style="color:var(--mut);font-size:13px;margin-top:10px">${r.from?`${r.from} lent you this book and will see your thought.`:'Neighbors who borrow this book will see your thought.'}</p>
- <button class="btn acc" onclick="postT()">Share thought</button>`}
-function postT(){const r=reading[pc.b];th.unshift({id:++tid,who:'You',book:r.t,c:r.c,loc:(pc.mode==='Page'?'p. ':'Ch. ')+pc.n,txt:pc.txt||'Still thinking about this one.',likes:0,spoil:pc.sp});go('f');toast(r.from?`Shared. ${r.from} can see what you think of their copy`:'Thought shared with your neighbors')}
-function scan(){return `<div class="top"><h1>Add a book</h1></div>
- <div class="view ${scanSt===1?'go':''}"><div class="bar"></div><div class="isbn">${scanSt===0?'Point your camera at the barcode':scanSt===1?'Reading barcode...':'9780393635683'}</div></div>
- ${scanSt===0?`<button class="btn acc" onclick="doScan()">Scan barcode</button><button class="btn ghost" onclick="seg='mine';go('p')">Enter ISBN instead</button>`:''}
- ${scanSt===2?`<div class="card item">${cv(newB)}<div><b>${newB.t}</b><small>${newB.a}</small><small>Found in 1 second</small></div></div><button class="btn acc" onclick="addB()">Add to my shelf</button><button class="btn ghost" onclick="scanSt=0;draw()">Scan another</button>`:''}`}
-const newB={t:'The Overstory',a:'Richard Powers',c:'#4E6B3E',on:1};
-function doScan(){scanSt=1;draw();setTimeout(()=>{if(tab==='s'){scanSt=2;draw()}},1800)}
-function addB(){const id=Date.now()*10;dbSet(`users/${me.id}/books/b${id}`,{id,t:newB.t,a:newB.a,c:newB.c,on:1});rebuild();seg='mine';go('p');toast('The Overstory added. Neighbors can now borrow it')}
-function profile(){
- const mine=th.filter(t=>t.who==='You'),onMine=th.filter(t=>t.lent);
- const body=seg==='mine'?lib.map((b,i)=>`<div class="card item">${cv(b)}<div><b>${b.t}</b><small>${b.a}</small><span class="tag ${b.on?'':'off'}">${b.lent?'Lent to '+b.lent:b.on?'Visible to neighbors':'Hidden'}</span></div><button class="sw ${b.on?'on':''}" aria-label="Toggle availability for ${b.t}" onclick="togB(${i})"></button></div>`).join('')+`<p style="color:var(--mut);font-size:13px">Switch a book off to keep it on your shelf without lending it.</p>`
- :seg==='want'?want.map(w=>{const m=near.filter(b=>b.t===w);return `<div class="card item"><div style="flex:1"><b>${w}</b><small>${m.length?`${m[0].o} has it, ${m[0].d.toLowerCase()}`:'No neighbors have it yet'}</small></div>${m.length?`<button class="chip on" onclick="go('detail',${m[0].id})">View</button>`:''}</div>`}).join('')
- :`<h3 style="margin-bottom:8px">From borrowers of your books</h3>${onMine.map(t=>`<div class="card"><b>${t.who}</b> <small style="color:var(--mut)">on ${t.book}, ${t.loc}</small><p class="q">${esc(t.txt)}</p>${(t.replies||[]).map(r=>`<p class="rp"><b>${r.who}</b> ${esc(r.txt)}</p>`).join('')}${ropen===t.id?`<div class="two" style="margin-top:8px;align-items:center"><input class="ri" id="ri" aria-label="Reply to ${t.who}" value="I loved that part too. Keep going, it only gets better."><button class="chip on" onclick="sendR(${t.id})">Send</button></div>`:`<button class="chip" style="margin-top:8px" onclick="ropen=${t.id};draw()">Reply</button>`}</div>`).join('')}<h3 style="margin:14px 0 8px">Your thoughts</h3>${mine.length?mine.map(t=>`<div class="card"><small style="color:var(--mut)">${t.book}, ${t.loc}</small><p class="q">${esc(t.txt)}</p>${(t.replies||[]).map(r=>`<p class="rp"><b>${r.who}</b> ${esc(r.txt)}</p>`).join('')}</div>`).join(''):'<p style="color:var(--mut)">Nothing yet. Share what you think as you read.</p>'}<button class="btn acc" onclick="go('post')">Share a thought</button>`;
- return `<div class="item" style="margin-bottom:6px"><div class="ava">${esc(me.name.slice(0,2).toUpperCase())}</div><div style="flex:1"><h1 style="font-size:24px">${esc(me.name)}</h1><small>${esc(me.unit||'Neighbor')} · Sharing within ${rng} mi</small><small>${LIVE?'Live neighborhood':'Local demo mode'}</small></div><button class="chip" onclick="signOut()">Switch</button></div>
- <div class="stats"><div><b>${lib.length}</b><small>On shelf</small></div><div><b>${lib.filter(b=>b.lent).length}</b><small>Lent out</small></div><div><b>${mine.length+onMine.length}</b><small>Thoughts</small></div><div><b>${new Set(near.map(b=>b.o)).size}</b><small>Neighbors</small></div></div>
- <div class="seg"><button class="${seg==='mine'?'on':''}" onclick="seg='mine';draw()">Shelf</button><button class="${seg==='want'?'on':''}" onclick="seg='want';draw()">Want to read</button><button class="${seg==='th'?'on':''}" onclick="seg='th';draw()">Thoughts</button></div>${body}`}
-const dl=n=>n===1?'1 day':n+' days';
-function extend(i){loans[i].days+=7;loans[i].total+=7;draw();toast('Extended by a week. '+loans[i].from+' has been told.')}
-function activity(){
- const U=DB.users||{},R=Object.values(DB.requests||{}),stl={pending:'Waiting',approved:'Accepted',declined:'Declined',returned:'Returned'},dleft=r=>Math.max(1,14-Math.floor((Date.now()-(r.appTs||Date.now()))/864e5)),
- realIn=R.filter(r=>r.to===me.id&&r.status==='pending').map(r=>[{k:'in',s:'Pending',who:r.fromName,w:(U[r.from]||{}).unit||'Nearby',d:'In your building',b:r.t,rid:r.id,bk:{t:r.t,a:r.a,c:r.c}},-1]),
- realOut=R.filter(r=>r.from===me.id&&r.status!=='returned').map(r=>({t:`You asked ${r.toName} to borrow ${r.t}`,s:stl[r.status]})),
- realLoans=R.filter(r=>r.from===me.id&&r.status==='approved').map(r=>({t:r.t,a:r.a,c:r.c,from:r.toName,days:dleft(r),total:14,real:1})),
- P=act.map((a,i)=>[a,i]),pend=[...realIn,...P.filter(([a])=>a.k==='in'&&a.s==='Pending')],outs=[...realOut,...act.filter(a=>a.k==='out')],ths=P.filter(([a])=>a.k==='th'||a.k==='rp'),lent=lib.filter(b=>b.lent),nT=ths.filter(([a])=>a.fresh).length;
- const head=`<div class="top"><h1>Activity</h1></div><div class="seg"><button class="${asec==='share'?'on':''}" onclick="asec='share';draw()">Sharing${pend.length?`<b class="nb">${pend.length}</b>`:''}</button><button class="${asec==='th'?'on':''}" onclick="asec='th';draw()">Thoughtstream${nT&&asec!=='th'?`<b class="nb">${nT}</b>`:''}</button></div>`;
- if(asec==='th'){const h=ths.length?ths.map(([a])=>{const tt=th.find(x=>x.id===a.tid),pv=a.k==='rp'?(tt&&tt.replies&&tt.replies.length?tt.replies[tt.replies.length-1].txt:''):(tt?tt.txt:'');return `<div class="card"><div class="item"><div style="flex:1"><b style="font-weight:500">${a.t}</b></div>${a.fresh?'<span class="st ok">New</span>':''}</div>${pv?`<p class="q" style="font-size:14px">\u201c${esc(pv)}\u201d</p>`:''}<button class="btn ghost" onclick="${a.k==='rp'?`ropen=null;seg='th';go('p')`:`seeT(${a.tid})`}">${a.k==='rp'?'See reply':'See thought'}</button></div>`}).join(''):'<p style="color:var(--mut)">No thoughts yet. Share one from the Feed.</p>';act.forEach(a=>a.fresh=0);return head+h}
- const rq=pend.map(([a,i])=>{const bk=a.bk||lib.find(b=>b.t===a.b)||{t:a.b,c:'#8C4A3C'};return `<div class="reqc"><div class="ph"><div class="pa" style="--c:${bk.c}">${a.who[0]}</div><div><b>${a.who} wants to borrow</b><small>${a.w} · ${a.d}</small></div><span class="tag" style="background:var(--acc);color:var(--accink)">New request</span></div><div class="item">${cv(bk)}<div><b class="serif" style="font-size:18px">${a.b}</b><small>${bk.a||''}</small><small>Usually lent for two weeks</small></div></div><div class="two"><button class="btn acc" onclick="${a.rid?`apR('${a.rid}',1)`:`approve(${i})`}">Approve</button><button class="btn ghost" onclick="${a.rid?`apR('${a.rid}',0)`:`act[${i}].s='Declined';draw()`}">Decline</button></div></div>`}).join('');
- const ot=outs.map(a=>`<div class="card"><div class="item"><div style="flex:1"><b style="font-weight:500">${a.t}</b></div><span class="st ${a.s==='Accepted'?'ok':''}">${a.s}</span></div></div>`).join('');
- const bo=[...realLoans,...loans].map((l,i)=>`<div class="card"><div class="item">${cv(l)}<div><b>${l.t}</b><small>From ${l.from}</small><div class="bar2 ${l.days<=3?'lo':''}"><i style="width:${Math.min(100,l.days/l.total*100)}%"></i></div><small><b>${dl(l.days)} left</b>${l.days<=3?' · due soon':''}</small></div></div>${l.real?'':`<div class="two"><button class="chip" onclick="extend(${loans.indexOf(l)})">Extend by a week</button></div>`}</div>`).join('');
- const lo=lent.map(b=>`<div class="card item">${cv(b)}<div><b>${b.t}</b><small>With ${b.lent}</small><span class="tag">Returns in ${dl(b.due||7)}</span>${b.rid?`<button class="chip" style="margin-left:6px" onclick="retR('${b.rid}')">Mark returned</button>`:''}</div></div>`).join('');
- return head+(rq?`<h3 class="sec" style="margin-top:4px">Requests for you</h3>`+rq:'')+(ot?`<h3 class="sec">Your requests</h3>`+ot:'')+(bo?`<h3 class="sec">Borrowed by you</h3>`+bo:'')+(lo?`<h3 class="sec">Lent out</h3>`+lo:'')}
-function sendR(id){const t=th.find(x=>x.id===id),v=$('ri').value.trim();if(!v)return;(t.replies=t.replies||[]).push({who:'You',txt:v});ropen=null;draw();toast('Reply sent to '+t.who);
- setTimeout(()=>{t.replies.push({who:t.who,txt:'Thank you! I’ll bring it back soon, and I’ll tell you what I think of the ending.'});act.unshift({k:'rp',t:`${t.who} replied on ${t.book}`,s:'New',tid:t.id,fresh:1});unread++;if(tab==='p'&&seg==='th')draw();else refresh();toast(t.who+' replied to you')},2800)}
-function wl(t){return want.includes(t)?'✓ On your want list<small>Tap to remove</small>':'Mark as want to read<small>We’ll tell you when a neighbor has it</small>'}
-function sheet(id){const b=near.find(x=>x.id===id),done=asked(b);
+ <div class="hero">${cv(b)}<div><h2 style="font-size:24px;line-height:1.1">${esc(b.t)}</h2><p style="color:var(--mut);margin:4px 0 10px">${esc(b.a)}</p><span class="tag">Available</span><p style="margin-top:12px"><b>${esc(b.o)}</b><br><span style="color:var(--mut)">${esc(b.w)} · ${b.b?'In your building':esc(b.d)}</span></p></div></div>
+ ${mine&&!done?`<div class="swap"><b class="serif" style="font-size:17px">You can swap</b><p style="font-size:13px;margin-top:2px">${esc(b.t)} is on your want list, and ${esc(b.o)} wants ${esc(mine.t)}.</p><div class="pair">${cv(mine)}<span style="font-size:22px">⇄</span>${cv(b)}</div><button class="btn acc" onclick="req(${b.id},1)">Propose swap</button></div>`:''}
+ ${done?`<p class="tag" style="padding:10px 14px">Request sent to ${esc(b.o)}. Check Activity for updates.</p>`:`<button class="btn ${mine?'ghost':''}" onclick="req(${b.id},0)">${mine?'Borrow without swapping':'Request to borrow'}</button>`}
+ <button class="btn ghost" onclick="toggleWant(${b.id});draw()">${inWant(b.t)?'✓ On your want list':'Mark as want to read'}</button>
+ ${tt.length?`<h3 style="margin:18px 0 8px">What neighbors think</h3>`+tt.map(t=>`<div class="card"><b>${esc(t.who)}</b> <small style="color:var(--mut)">${esc(t.loc)}</small><p class="q">${t.spoil?'Spoiler hidden. Open the feed to reveal.':esc(t.txt)}</p></div>`).join(''):''}`}
+
+/* ---------- book options sheet (opened from the feed) ---------- */
+const wl=t=>inWant(t)?'✓ On your want list<small>Tap to remove</small>':'Mark as want to read<small>We’ll flag swap matches for you</small>';
+function sheet(id){const b=near.find(x=>x.id===id);if(!b)return;const done=asked(b),mine=swapFor(b);
  const e=document.createElement('div');e.className='scrim2';e.id='sheet';e.onclick=closeSheet;
- e.innerHTML=`<div class="sh" role="dialog" aria-label="Options for ${b.t}" onclick="event.stopPropagation()"><div class="grab"></div><div class="item" style="margin-bottom:4px">${cv(b)}<div><b class="serif" style="font-size:18px">${b.t}</b><small>${b.a}</small><small>${b.o} · ${b.w}</small><small>${b.b?'In your building':b.d+' away'}</small></div></div>
- ${done?`<p class="tag" style="display:block;margin-top:10px;padding:10px 14px">Request already sent to ${b.o}</p>`:`${b.swap?`<button class="opt pri" onclick="closeSheet();req(${b.id},1)">Propose a swap<small>Trade ${lib[0].t} for ${b.t}</small></button>`:''}<button class="opt ${b.swap?'':'pri'}" onclick="closeSheet();req(${b.id},0)">${b.swap?'Borrow without swapping':'Request to borrow'}<small>${b.o} usually lends for two weeks</small></button>`}
- <button class="opt" id="wb" onclick="toggleWant('${b.t}')">${wl(b.t)}</button>
+ e.innerHTML=`<div class="sh" role="dialog" aria-label="Options for ${esc(b.t)}" onclick="event.stopPropagation()"><div class="grab"></div><div class="item" style="margin-bottom:4px">${cv(b)}<div><b class="serif" style="font-size:18px">${esc(b.t)}</b><small>${esc(b.a)}</small><small>${esc(b.o)} · ${esc(b.w)}</small><small>${b.b?'In your building':esc(b.d)}</small></div></div>
+ ${done?`<p class="tag" style="display:block;margin-top:10px;padding:10px 14px">Request already sent to ${esc(b.o)}</p>`:`${mine?`<button class="opt pri" onclick="closeSheet();req(${b.id},1)">Propose a swap<small>Trade ${esc(mine.t)} for ${esc(b.t)}</small></button>`:''}<button class="opt ${mine?'':'pri'}" onclick="closeSheet();req(${b.id},0)">${mine?'Borrow without swapping':'Request to borrow'}<small>${esc(b.o)} usually lends for two weeks</small></button>`}
+ <button class="opt" id="wb" onclick="toggleWant(${b.id})">${wl(b.t)}</button>
  <button class="opt" onclick="closeSheet();go('detail',${b.id})">View book page<small>See what neighbors think of it</small></button>
  <button class="btn ghost" onclick="closeSheet()">Close</button></div>`;$('app').appendChild(e)}
 function closeSheet(){const e=$('sheet');if(!e)return;e.id='';e.classList.add('out');setTimeout(()=>e.remove(),230)}
-function toggleWant(t){const i=want.indexOf(t);i<0?want.push(t):want.splice(i,1);$('wb').innerHTML=wl(t);toast(i<0?'Added to your want to read list':'Removed from your want to read list')}
-const asked=b=>act.some(a=>a.b===b.t)||Object.values(DB.requests||{}).some(r=>r.from===me.id&&r.bookId===b.id&&r.status!=='declined'&&r.status!=='returned');
-function togB(i){const b=lib[i];dbSet(`users/${me.id}/books/b${b.id}/on`,b.on?0:1);rebuild();draw()}
-function seedWorld(){const[a,b,c]=[0,1,2].map(i=>lib[i]||POOL[i]);
- th=[{id:1,who:'Maya',book:b.t,c:b.c,loc:'Ch. 9',txt:'Halfway through and I keep thinking about it on my commute. Thank you for lending me this one!',likes:12,lent:1},
- {id:2,who:'Rosa',book:'Braiding Sweetgrass',c:'#7A8541',loc:'Ch. 1',txt:'Read “Skywoman Falling” on the stairs and walked right past my floor.',likes:31},
- {id:3,who:'Dev',book:'Project Hail Mary',c:'#C1502E',loc:'p. 204',txt:'Rocky might be the best character anyone has written in ten years.',likes:48},
- {id:4,who:'Jon',book:'The Overstory',c:'#4E6B3E',loc:'p. 301',txt:'The tree that was hiding in plain sight the whole time. Can’t say more.',likes:9,spoil:1},
- {id:5,who:'Tom',book:'Project Hail Mary',c:'#C1502E',loc:'p. 88',txt:'Waking up with no memory and a mystery to solve is the best opening hook I’ve read in years.',likes:22},
- {id:6,who:'You',book:a.t,c:a.c,loc:'p. 98',txt:'I’d forgotten how strange and funny the opening is. Reading it slowly this time.',likes:7,replies:[{who:'Rosa',txt:'Try reading a chapter out loud. It hits completely differently!'}]}];
- act=[{k:'in',t:`Dev wants to borrow ${c.t}`,s:'Pending',b:c.t,who:'Dev',w:'Maple St',d:'0.4 mi away'},{k:'th',t:`Maya shared a thought on your copy of ${b.t}`,s:'New',tid:1,fresh:1},{k:'rp',t:`Rosa replied to your thought on ${a.t}`,s:'New',tid:6,fresh:1}];
- loans=[{t:'Station Eleven',a:'Emily St. John Mandel',c:'#6A4A5A',from:'Rosa',days:9,total:14}];
- reading=[{t:a.t,c:a.c},{t:b.t,c:b.c},{t:'Station Eleven',c:'#6A4A5A',from:'Rosa'}];
- fakeLent={[b.id]:{who:'Maya',due:6}};unread=3;seen=null;tid=10;rebuild();notify()}
-function rebuild(){const U=DB.users||{},R=Object.values(DB.requests||{}),mine=(U[me.id]||{}).books||{};
- lib=Object.values(mine).sort((x,y)=>x.id-y.id).map(b=>{const r=R.find(r=>r.bookId===b.id&&r.status==='approved'),f=fakeLent[b.id];return {...b,lent:r?r.fromName:f&&f.who,due:r?Math.max(1,14-Math.floor((Date.now()-(r.appTs||Date.now()))/864e5)):f&&f.due,rid:r&&r.id}});
- const held=new Set(R.filter(r=>r.status==='approved').map(r=>r.bookId)),real=[];
- Object.entries(U).forEach(([id,u])=>{if(id===me.id)return;Object.values(u.books||{}).forEach(b=>{if(b.on&&!held.has(b.id))real.push({id:b.id,t:b.t,a:b.a,c:b.c,o:u.name,w:u.unit||'Nearby',d:'In your building',b:1,real:1,uid:id})})});
- near=[...seedNear,...real]}
+
+/* ---------- want list ---------- */
+function toggleWantT(t){const has=inWant(t);dbSet(`users/${me.id}/want/${key(t)}`,has?null:t);rebuild();return !has}
+function toggleWant(id){const b=near.find(x=>x.id===id);if(!b)return;const added=toggleWantT(b.t);const w=$('wb');if(w)w.innerHTML=wl(b.t);toast(added?'Added to your want to read list':'Removed from your want to read list')}
+function addWant(){const i=$('wi');const v=(i&&i.value||'').replace(/[<>&"`\\$]/g,'').trim().slice(0,60);if(!v)return;if(!inWant(v))dbSet(`users/${me.id}/want/${key(v)}`,v);rebuild();draw();toast('Added to your want to read list')}
+function rmWant(k){dbSet(`users/${me.id}/want/${k}`,null);rebuild();draw()}
+
+/* ---------- requests ---------- */
+function req(id,sw){const b=near.find(x=>x.id===id);if(!b)return;realReq(b,sw?swapFor(b):null)}
+function realReq(b,offer){const id='r'+uid(),rec={id,bookId:b.id,t:b.t,a:b.a,c:b.c,from:me.id,fromName:me.name,to:b.uid,toName:b.o,status:'pending',ts:Date.now()};
+ if(offer)rec.offer={id:offer.id,t:offer.t,a:offer.a,c:offer.c};
+ dbSet('requests/'+id,rec);if(seen)seen[id]='pending';asec='share';go('a');toast(offer?'Swap proposed to '+b.o:'Request sent to '+b.o)}
+function apR(id,ok){const r=(DB.requests||{})[id];if(!r)return;const now=Date.now();
+ dbSet('requests/'+id,{...r,status:ok?'approved':'declined',appTs:now});
+ if(ok&&r.offer){const id2='r'+uid();dbSet('requests/'+id2,{id:id2,bookId:r.offer.id,t:r.offer.t,a:r.offer.a,c:r.offer.c,from:r.to,fromName:r.toName,to:r.from,toName:r.fromName,status:'approved',ts:now,appTs:now,swapOf:id})}
+ rebuild();draw();toast(ok?(r.offer?`Swap confirmed with ${r.fromName}`:`${r.fromName} has been told. ${r.t} is marked as lent`):'Request declined')}
+function retR(id){const r=(DB.requests||{})[id];if(!r)return;dbSet('requests/'+id,{...r,status:'returned'});rebuild();draw();toast('Marked as returned. It’s back on your shelf')}
+function extendR(id){const r=(DB.requests||{})[id];if(!r)return;dbSet(`requests/${id}/ext`,(r.ext||0)+7);rebuild();draw();toast('Extended by a week. '+r.toName+' has been told.')}
+function readL(id){const r=(DB.requests||{})[id];if(r)markRead(r.t,r.a,r.c)}
+function markRead(t,a,c){const k=key(t),has=isRead(t);dbSet(`users/${me.id}/read/${k}`,has?null:{t,a:a||'',c:c||'',ts:Date.now()});rebuild();draw();toast(has?'Removed from your read list':'Marked as read. It counts toward your leaderboard rank')}
+function readB(i){const b=lib[i];if(b)markRead(b.t,b.a,b.c)}
+function togB(i){const b=lib[i];if(!b)return;dbSet(`users/${me.id}/books/b${b.id}/on`,b.on?0:1);rebuild();draw()}
+
+/* ---------- feed (shared thoughts) ---------- */
+function repliesHTML(t){return `<div class="reps">${reps(t).map(r=>`<p class="rp"><b>${esc(r.who)}</b> ${esc(r.txt)} <small style="color:var(--mut)">${ago(r.ts)}</small></p>`).join('')}<div class="two" style="margin-top:8px;align-items:center"><input class="ri" id="ri" aria-label="Reply to ${esc(t.who)}" maxlength="240" placeholder="Write a reply" onkeydown="if(event.key==='Enter')sendR('${t.id}')"><button class="chip on" onclick="sendR('${t.id}')">Send</button></div></div>`}
+function card(t){const nb=near.find(b=>slug(b.t)===slug(t.t)),mineT=t.uid===me.id;
+ return `<article class="post ${t.spoil?'blur':''}" id="r${t.id}" style="--c:${esc(t.c||'#6B4226')}"><div class="ph"><div class="pa">${esc((t.who||'?')[0])}</div><div><b>${esc(mineT?'You':t.who)}</b><small>${esc(t.t)} · ${esc(t.loc)} · ${ago(t.ts)}</small></div>${t.lender===me.id?'<span class="tag" style="background:var(--acc);color:var(--accink)">On your copy</span>':''}</div>
+ <div class="stage">${cv({t:t.t,a:t.a,c:t.c||'#6B4226'})}</div><blockquote class="pq" onclick="this.parentNode.classList.remove('blur')">${esc(t.txt)}</blockquote><p class="rv">Spoiler hidden. Tap to reveal.</p>
+ <div class="acts"><button class="lk ${(t.likes||{})[me.id]?'on':''}" aria-label="Like" onclick="like('${t.id}')">${ic('h')}<span>${nLikes(t)}</span></button><button aria-label="Replies" onclick="toggleReplies('${t.id}')">${ic('c')}<span>${reps(t).length}</span></button>${nb?`<button class="sub" aria-label="Options for ${esc(nb.t)}" onclick="sheet(${nb.id})"><span class="pa">${esc(nb.o[0])}</span><span class="tx"><b>${esc(nb.o)}${nb.uid===t.uid?' has':' also has'} this book</b><small>${nb.b?'In your building':esc(nb.d)}</small></span><span class="ch">›</span></button>`:''}</div>${ropen===t.id?repliesHTML(t):''}</article>`}
+function feed(){const L=thoughtsArr();
+ return `<div class="fh"><h1 style="font-size:28px">Feed</h1><button class="chip on" onclick="go('post')">+ Add thought</button></div>`+(L.length?L.map(card).join(''):`<div class="card empty"><b class="serif" style="font-size:18px">No thoughts yet</b><p>Share what you think as you read. Neighbors who borrow your books will see it.</p><button class="btn acc" onclick="go('post')">Share the first thought</button></div>`)}
+function toggleReplies(id){ropen=ropen===id?null:id;draw();if(ropen)setTimeout(()=>{const i=$('ri');i&&i.focus()},30)}
+function like(id){const t=(DB.thoughts||{})[id];if(!t)return;const has=(t.likes||{})[me.id];dbSet(`thoughts/${id}/likes/${me.id}`,has?null:1);draw()}
+function sendR(tid){const t=(DB.thoughts||{})[tid],i=$('ri');if(!t||!i)return;const v=i.value.trim().slice(0,240);if(!v)return;const rid='p'+uid();
+ dbSet(`thoughts/${tid}/replies/${rid}`,{id:rid,uid:me.id,who:me.name,txt:v,ts:Date.now()});draw();toast('Reply sent to '+t.who)}
+function seeT(id,open){tab='f';det=null;ropen=open?id:null;draw();const el=$('r'+id);if(el)el.scrollIntoView({block:'center'})}
+
+/* ---------- share a thought ---------- */
+function readingList(){const R=Object.values(DB.requests||{}),seenT=new Set(),out=[];
+ R.filter(r=>r.from===me.id&&r.status==='approved').forEach(r=>{out.push({t:r.t,a:r.a,c:r.c,lender:r.to,from:r.toName});seenT.add(slug(r.t))});
+ lib.forEach(b=>{if(!seenT.has(slug(b.t)))out.push({t:b.t,a:b.a,c:b.c,lender:''})});return out}
+function compose(){const RL=readingList();
+ if(!RL.length)return `<button class="back" onclick="go('f')">‹ Cancel</button><p style="color:var(--mut)">Add a book to your shelf first, then share what you think.</p>`;
+ if(pc.b>=RL.length)pc.b=0;const r=RL[pc.b];
+ return `<button class="back" onclick="go('f')">‹ Cancel</button><div class="top"><h1>Share a thought</h1></div>
+ <div class="lbl" style="margin-top:0">Which book?</div><div class="row" style="margin:0">${RL.map((x,i)=>`<button class="chip ${pc.b===i?'on':''}" onclick="pc.b=${i};draw()">${esc(x.t)}</button>`).join('')}</div>
+ <div class="lbl">Where are you?</div><div class="two" style="align-items:center"><div class="seg" style="margin:0;flex:1">${['Page','Chapter'].map(m=>`<button class="${pc.mode===m?'on':''}" onclick="pc.mode='${m}';draw()">${m}</button>`).join('')}</div><input type="number" min="1" value="${pc.n}" aria-label="${pc.mode} number" oninput="pc.n=this.value"></div>
+ <div class="lbl">Your thought</div><textarea maxlength="280" oninput="pc.txt=this.value" aria-label="Your thought">${esc(pc.txt)}</textarea>
+ <div class="item" style="margin-top:12px"><div style="flex:1"><b>Hide behind a spoiler warning</b></div><button class="sw ${pc.sp?'on':''}" aria-label="Spoiler warning" onclick="pc.sp=!pc.sp;draw()"></button></div>
+ <p style="color:var(--mut);font-size:13px;margin-top:10px">${r.from?`${esc(r.from)} lent you this book and will see your thought.`:'Neighbors who borrow this book will see your thought.'}</p>
+ <button class="btn acc" onclick="postT()">Share thought</button>`}
+function postT(){const r=readingList()[pc.b];if(!r)return;const id='t'+uid();
+ dbSet('thoughts/'+id,{id,uid:me.id,who:me.name,t:r.t,a:r.a||'',c:r.c||'',loc:(pc.mode==='Page'?'p. ':'Ch. ')+(String(pc.n).replace(/\D/g,'')||'1'),txt:(pc.txt||'').trim().slice(0,280)||'Still thinking about this one.',spoil:pc.sp?1:0,ts:Date.now(),lender:r.lender||''});
+ pc.txt='';pc.sp=0;tab='f';draw();$('screen').scrollTop=0;toast(r.from?`Shared. ${r.from} can see what you think of their copy`:'Thought shared with your neighbors')}
+
+/* ---------- add a book ---------- */
+const SCAN=[{t:'The Overstory',a:'Richard Powers',c:'#4E6B3E',i:'9780393635522'},{t:'Piranesi',a:'Susanna Clarke',c:'#5B4B3A',i:'9781635575637'},{t:'Station Eleven',a:'Emily St. John Mandel',c:'#6A4A5A',i:'9780804172448'},{t:'Project Hail Mary',a:'Andy Weir',c:'#C1502E',i:'9780593135204'},{t:'Klara and the Sun',a:'Kazuo Ishiguro',c:'#B88A2E',i:'9780593318171'},{t:'Braiding Sweetgrass',a:'Robin Wall Kimmerer',c:'#7A8541',i:'9781571313560'},{t:'Dune',a:'Frank Herbert',c:'#B5651D',i:'9780441013593'},{t:'Circe',a:'Madeline Miller',c:'#8C4A3C',i:'9780316556347'},{t:'Educated',a:'Tara Westover',c:'#7A4B6B',i:'9780399590504'},{t:'The Hobbit',a:'J.R.R. Tolkien',c:'#4F6F3A',i:'9780547928227'}];
+const SWATCH=['#8C4A3C','#5B4B3A','#7A8541','#6A4A5A','#B07A2A','#4E6B3E','#7A4B2A','#8A5A44'];
+function scan(){
+ if(scanSt===3)return `<button class="back" onclick="scanSt=0;draw()">‹ Back to scanner</button><div class="top"><h1>Add by title</h1></div><label class="lbl" for="mt" style="margin-top:0">Title</label><input id="mt" class="ri" style="width:100%;border-radius:14px;padding:12px" maxlength="60" autocomplete="off"><label class="lbl" for="ma">Author <span style="font-weight:400;color:var(--mut)">(optional)</span></label><input id="ma" class="ri" style="width:100%;border-radius:14px;padding:12px" maxlength="40" autocomplete="off" onkeydown="if(event.key==='Enter')addManual()"><button class="btn acc" onclick="addManual()">Add to my shelf</button>`;
+ return `<div class="top"><h1>Add a book</h1></div>
+ <div class="view ${scanSt===1?'go':''}"><div class="bar"></div><div class="isbn">${scanSt===0?'Point your camera at the barcode':scanSt===1?'Reading barcode...':esc(newB.i||'')}</div></div>
+ ${scanSt===0?`<button class="btn acc" onclick="doScan()">Scan barcode</button><button class="btn ghost" onclick="scanSt=3;draw()">Add by title instead</button>`:''}
+ ${scanSt===2?`<div class="card item">${cv(newB)}<div><b>${esc(newB.t)}</b><small>${esc(newB.a)}</small><small>Found in 1 second</small></div></div><button class="btn acc" onclick="addB()">Add to my shelf</button><button class="btn ghost" onclick="scanSt=0;draw()">Scan another</button>`:''}`}
+function doScan(){newB=SCAN.find(b=>!lib.some(x=>slug(x.t)===slug(b.t)))||SCAN[SCAN.length-1];scanSt=1;draw();setTimeout(()=>{if(tab==='s'&&scanSt===1){scanSt=2;draw()}},1800)}
+function addManual(){const t=(($('mt')||{}).value||'').replace(/[<>&"`\\$]/g,'').trim().slice(0,60),a=(($('ma')||{}).value||'').replace(/[<>&"`\\$]/g,'').trim().slice(0,40);if(!t){toast('Enter a title first');return}
+ const h=[...t].reduce((x,c)=>(x*31+c.charCodeAt(0))>>>0,7);newB={t,a,c:SWATCH[h%SWATCH.length]};addB()}
+function addB(){const id=Date.now()*10;dbSet(`users/${me.id}/books/b${id}`,{id,t:newB.t,a:newB.a||'',c:newB.c,on:1});rebuild();seg='mine';go('p');toast(`${newB.t} added. Neighbors can now borrow it`)}
+
+/* ---------- profile ---------- */
+function stats(id){const u=(DB.users||{})[id]||{};return {read:Object.keys(u.read||{}).length,lent:Object.values(DB.requests||{}).filter(r=>r.to===id&&(r.status==='approved'||r.status==='returned')).length}}
+const tcard=t=>`<div class="card"><b>${esc(t.uid===me.id?'You':t.who)}</b> <small style="color:var(--mut)">on ${esc(t.t)}, ${esc(t.loc)}</small><p class="q">${esc(t.txt)}</p>${ropen===t.id?repliesHTML(t):`${reps(t).map(r=>`<p class="rp"><b>${esc(r.who)}</b> ${esc(r.txt)}</p>`).join('')}<button class="chip" style="margin-top:8px" onclick="ropen='${t.id}';draw();setTimeout(()=>{const i=$('ri');i&&i.focus()},30)">Reply</button>`}</div>`;
+function profile(){
+ const meU=(DB.users||{})[me.id]||{},ml=meU.loc,st=stats(me.id),T=thoughtsArr(),mine=T.filter(t=>t.uid===me.id),onMine=T.filter(t=>t.lender===me.id&&t.uid!==me.id);
+ const nbrs=Object.entries(DB.users||{}).filter(([id,u])=>id!==me.id&&(dist(ml,u.loc)||1e9)<=30).length;
+ const body=seg==='mine'?(lib.length?lib.map((b,i)=>`<div class="card item">${cv(b)}<div><b>${esc(b.t)}</b><small>${esc(b.a)}</small><span class="tag ${b.on?'':'off'}">${b.lent?'Lent to '+esc(b.lent):b.on?'Visible to neighbors':'Hidden'}</span><div><button class="chip ${b.read?'on':''}" style="margin-top:6px" onclick="readB(${i})">${b.read?'Read ✓':'Mark as read'}</button></div></div><button class="sw ${b.on?'on':''}" aria-label="Toggle availability for ${esc(b.t)}" onclick="togB(${i})"></button></div>`).join('')+`<p style="color:var(--mut);font-size:13px">Switch a book off to keep it on your shelf without lending it.</p>`:`<div class="card empty"><b class="serif" style="font-size:18px">Your shelf is empty</b><p>Scan a book to share it with neighbors.</p><button class="btn acc" onclick="go('s')">Add a book</button></div>`)
+ :seg==='want'?`<form onsubmit="addWant();return false" class="two" style="align-items:center;margin-bottom:12px"><input class="ri" id="wi" aria-label="Add a book you want" maxlength="60" placeholder="Add a book you want to read"><button class="chip on" type="submit">Add</button></form>`+(want.length?want.map(w=>{const m=near.find(b=>slug(b.t)===slug(w));return `<div class="card item"><div style="flex:1"><b>${esc(w)}</b><small>${m?`${esc(m.o)} has it, ${m.b?'in your building':esc(m.d)}`:'No neighbors have it yet'}</small></div>${m?`<button class="chip on" onclick="go('detail',${m.id})">View</button>`:''}<button class="chip" aria-label="Remove ${esc(w)}" onclick="rmWant('${key(w)}')">Remove</button></div>`}).join(''):'<p style="color:var(--mut)">Nothing here yet. Add a book above, or mark one from Discover.</p>')
+ :`<h3 style="margin-bottom:8px">From borrowers of your books</h3>${onMine.length?onMine.map(tcard).join(''):'<p style="color:var(--mut);margin-bottom:8px">When someone shares a thought on a book you lent, it shows up here.</p>'}<h3 style="margin:14px 0 8px">Your thoughts</h3>${mine.length?mine.map(tcard).join(''):'<p style="color:var(--mut)">Nothing yet. Share what you think as you read.</p>'}<button class="btn acc" onclick="go('post')">Share a thought</button>`;
+ return `<div class="item" style="margin-bottom:6px"><div class="ava">${esc(initials(me.name))}</div><div style="flex:1"><h1 style="font-size:24px">${esc(me.name)}</h1><small>${esc(meU.unit||'Neighbor')}</small><small>${ml?esc(locLabel(ml)):'Location not set'}${ml&&ml.src==='gps'?' · precise':''}</small></div><button class="chip" onclick="signOut()">Switch</button></div>
+ ${ml&&ml.src!=='gps'?`<button class="chip" style="margin:4px 0 0" onclick="preciseLoc()">${ic('pin')} Use precise location</button>`:''}
+ <div class="stats"><div><b>${lib.length}</b><small>On shelf</small></div><div><b>${st.read}</b><small>Read</small></div><div><b>${st.lent}</b><small>Lent</small></div><div><b>${nbrs}</b><small>Neighbors</small></div></div>
+ <div class="seg"><button class="${seg==='mine'?'on':''}" onclick="seg='mine';draw()">Shelf</button><button class="${seg==='want'?'on':''}" onclick="seg='want';draw()">Want to read</button><button class="${seg==='th'?'on':''}" onclick="seg='th';draw()">Thoughts</button></div>${body}`}
+
+/* ---------- activity ---------- */
+function tItems(){const out=[];thoughtsArr().forEach(t=>{
+ if(t.lender===me.id&&t.uid!==me.id)out.push({key:'t:'+t.id,tid:t.id,ts:t.ts,kind:'th',text:`${t.who} shared a thought on your copy of ${t.t}`,prev:t.spoil?'':t.txt});
+ if(t.uid===me.id)reps(t).forEach(r=>{if(r.uid!==me.id)out.push({key:'p:'+t.id+':'+r.id,tid:t.id,ts:r.ts,kind:'rp',text:`${r.who} replied to your thought on ${t.t}`,prev:r.txt})})});
+ out.sort((a,b)=>b.ts-a.ts);out.forEach(i=>i.fresh=!(tseen&&tseen.has(i.key)));return out}
+function saveTSeen(){ls.set('ss_ts_'+me.id,JSON.stringify([...tseen].slice(-300)))}
+function activity(){
+ const R=Object.values(DB.requests||{}).sort((a,b)=>b.ts-a.ts),U=DB.users||{};
+ const pend=R.filter(r=>r.to===me.id&&r.status==='pending'),outs=R.filter(r=>r.from===me.id&&r.status!=='returned').slice(0,8),loans=R.filter(r=>r.from===me.id&&r.status==='approved'),lent=lib.filter(b=>b.lent);
+ const items=tItems(),nNew=items.filter(i=>i.fresh).length;
+ const head=`<div class="top"><h1>Activity</h1></div><div class="seg"><button class="${asec==='share'?'on':''}" onclick="asec='share';draw()">Sharing${pend.length?`<b class="nb">${pend.length}</b>`:''}</button><button class="${asec==='th'?'on':''}" onclick="asec='th';draw()">Thoughtstream${nNew&&asec!=='th'?`<b class="nb">${nNew}</b>`:''}</button></div>`;
+ if(asec==='th'){
+  const h=items.length?items.map(i=>`<div class="card"><div class="item"><div style="flex:1"><b style="font-weight:500">${esc(i.text)}</b></div>${i.fresh?'<span class="st ok">New</span>':''}</div>${i.prev?`<p class="q" style="font-size:14px">“${esc(i.prev)}”</p>`:''}<button class="btn ghost" onclick="seeT('${i.tid}',${i.kind==='rp'})">${i.kind==='rp'?'See reply':'See thought'}</button></div>`).join(''):`<div class="card empty"><b class="serif" style="font-size:18px">Nothing yet</b><p>When a neighbor shares a thought on a book you lent, or replies to one of yours, it shows up here.</p></div>`;
+  if(tseen){items.forEach(i=>tseen.add(i.key));saveTSeen()}return head+h}
+ const rq=pend.map(r=>{const su=U[r.from]||{};return `<div class="reqc"><div class="ph"><div class="pa" style="--c:${esc(r.c||'#6B4226')}">${esc((r.fromName||'?')[0])}</div><div><b>${esc(r.fromName)} wants to borrow</b><small>${esc(su.unit||(su.loc&&su.loc.city)||'Nearby')} · ${esc(fmtD(dist(myLoc(),su.loc)))}</small></div><span class="tag" style="background:var(--acc);color:var(--accink)">${r.offer?'Swap offer':'New request'}</span></div><div class="item">${cv(r)}<div><b class="serif" style="font-size:18px">${esc(r.t)}</b><small>${esc(r.a||'')}</small>${r.offer?`<small>Offers ${esc(r.offer.t)} in exchange</small>`:'<small>Usually lent for two weeks</small>'}</div></div><div class="two"><button class="btn acc" onclick="apR('${r.id}',1)">Approve</button><button class="btn ghost" onclick="apR('${r.id}',0)">Decline</button></div></div>`}).join('');
+ const ot=outs.map(r=>`<div class="card"><div class="item"><div style="flex:1"><b style="font-weight:500">${esc(r.swapOf?`Swap: you’re borrowing ${r.t} from ${r.toName}`:r.offer?`Swap proposed: ${r.offer.t} for ${r.t}`:`You asked ${r.toName} to borrow ${r.t}`)}</b></div><span class="st ${r.status==='approved'?'ok':''}">${STL[r.status]||esc(r.status)}</span></div></div>`).join('');
+ const bo=loans.map(r=>{const d=daysLeft(r);return `<div class="card"><div class="item">${cv(r)}<div><b>${esc(r.t)}</b><small>From ${esc(r.toName)}</small><div class="bar2 ${d<=3?'lo':''}"><i style="width:${Math.min(100,d/(14+(r.ext||0))*100)}%"></i></div><small><b>${dl(d)} left</b>${d<=3?' · due soon':''}</small></div></div><div class="two" style="margin-top:8px"><button class="chip" onclick="extendR('${r.id}')">Extend by a week</button><button class="chip ${isRead(r.t)?'on':''}" onclick="readL('${r.id}')">${isRead(r.t)?'Read ✓':'Finished reading'}</button></div></div>`}).join('');
+ const lo=lent.map(b=>`<div class="card item">${cv(b)}<div><b>${esc(b.t)}</b><small>With ${esc(b.lent)}</small><span class="tag">Returns in ${dl(b.due||7)}</span>${b.rid?`<button class="chip" style="margin-left:6px" onclick="retR('${b.rid}')">Mark returned</button>`:''}</div></div>`).join('');
+ const none=!rq&&!ot&&!bo&&!lo;
+ return head+(none?`<div class="card empty"><b class="serif" style="font-size:18px">No activity yet</b><p>Find a book on Discover and send your first request.</p><button class="btn acc" onclick="go('d')">Browse books</button></div>`:'')+(rq?`<h3 class="sec" style="margin-top:4px">Requests for you</h3>`+rq:'')+(ot?`<h3 class="sec">Your requests</h3>`+ot:'')+(bo?`<h3 class="sec">Borrowed by you</h3>`+bo:'')+(lo?`<h3 class="sec">Lent out</h3>`+lo:'')}
+
+/* ---------- community: clubs + leaderboard ---------- */
+const msgs=cid=>Object.values((DB.clubmsgs||{})[cid]||{}).sort((a,b)=>a.ts-b.ts);
+const lastMsg=cid=>{const m=msgs(cid);return m[m.length-1]};
+function community(){
+ if(curClub)return chat();
+ return `<div class="top"><h1>Community</h1></div><div class="seg"><button class="${csec==='clubs'?'on':''}" onclick="csec='clubs';draw()">Book clubs</button><button class="${csec==='board'?'on':''}" onclick="csec='board';draw()">Leaderboard</button></div>`+(csec==='clubs'?clubsList():leaderboard())}
+
+/* book clubs */
+function clubsList(){const ml=myLoc();
+ const rows=Object.values(DB.clubs||{}).map(c=>({c,mi:dist(ml,c),n:Object.keys(c.members||{}).length,lm:lastMsg(c.id)})).sort((a,b)=>(a.mi==null)-(b.mi==null)||(a.mi||0)-(b.mi||0)||a.c.name.localeCompare(b.c.name));
+ return `<p style="color:var(--mut);font-size:13px;margin:-4px 0 12px">Chats for readers near you, closest first.</p>`
+ +(rows.length?rows.map(({c,mi,n,lm})=>{const j=(c.members||{})[me.id];
+  return `<div class="card item cl" role="button" tabindex="0" onclick="openClub('${c.id}')" onkeydown="if(event.key==='Enter')openClub('${c.id}')"><div class="cav">${esc(initials(c.name))}</div><div><b>${esc(c.name)}</b><small>${esc(KIND[c.kind]||'Community')} · ${esc(fmtD(mi))} · ${n} member${n===1?'':'s'}</small><small class="pv">${lm?esc((lm.uid==='sys'?'':lm.who+': ')+lm.txt):'No messages yet'}</small></div><button class="chip ${j?'on':''}" onclick="event.stopPropagation();${j?`openClub('${c.id}')`:`joinClub('${c.id}')`}">${j?'Open':'Join'}</button></div>`}).join('')
+  :`<div class="card empty"><b class="serif" style="font-size:18px">No clubs nearby yet</b><p>Start the first one below.</p></div>`)
+ +`<div class="card"><b class="serif" style="font-size:16px">Start a club</b><p style="color:var(--mut);font-size:13px;margin-top:2px">Name it after your building, street or favorite genre. It appears for readers near you.</p><div class="two" style="align-items:center;margin-top:8px"><input class="ri" id="cn" aria-label="Club name" maxlength="30" placeholder="e.g. Apartment Building 2" onkeydown="if(event.key==='Enter')createClub()"><button class="chip on" onclick="createClub()">Create</button></div></div>`}
+function chat(){const c=(DB.clubs||{})[curClub];if(!c){curClub=null;return community()}
+ const j=(c.members||{})[me.id],n=Object.keys(c.members||{}).length,d=dist(myLoc(),c);
+ return `<div class="chat"><div class="hd"><button class="back" style="margin:0" onclick="curClub=null;draw()">‹ Clubs</button><div style="flex:1;min-width:0"><b class="serif" style="font-size:17px;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(c.name)}</b><small style="color:var(--mut)">${esc(KIND[c.kind]||'Community')} · ${esc(fmtD(d))} · ${n} member${n===1?'':'s'}</small></div><button class="chip ${j?'':'on'}" onclick="${j?`leaveClub('${c.id}')`:`joinClub('${c.id}')`}">${j?'Leave':'Join'}</button></div>
+ <div id="msgs">${msgsHTML(c.id)}</div>
+ ${j?`<div class="cmp"><input class="ri" id="mi" maxlength="300" aria-label="Message" placeholder="Message ${esc(c.name)}" autocomplete="off" onkeydown="if(event.key==='Enter')sendMsg()"><button class="chip on" onclick="sendMsg()">Send</button></div>`:`<div class="cmp"><button class="btn acc" style="margin:0" onclick="joinClub('${c.id}')">Join to chat</button></div>`}</div>`}
+function msgsHTML(cid){const c=(DB.clubs||{})[cid]||{};
+ return (c.desc?`<p class="cdesc">${esc(c.desc)}</p>`:'')+msgs(cid).map(m=>m.uid==='sys'?`<div class="sys"><b>ShelfShare</b> ${esc(m.txt)}</div>`:`<div class="msg ${m.uid===me.id?'me':''}"><small>${m.uid===me.id?'You':esc(m.who)} · ${ago(m.ts)}</small><div class="bub">${esc(m.txt)}</div></div>`).join('')}
+function drawMsgs(force){const el=$('msgs');if(!el||!curClub)return;const h=msgsHTML(curClub);if(h===lastMsgHtml&&!force)return;
+ const atEnd=el.scrollHeight-el.scrollTop-el.clientHeight<80;lastMsgHtml=h;el.innerHTML=h;if(atEnd||force)el.scrollTop=el.scrollHeight}
+function afterChat(){const el=$('msgs');if(el){lastMsgHtml=msgsHTML(curClub);el.scrollTop=el.scrollHeight}}
+function openClub(id){curClub=id;draw()}
+function joinClub(id){dbSet(`clubs/${id}/members/${me.id}`,1);draw();toast('Joined the club')}
+function leaveClub(id){dbSet(`clubs/${id}/members/${me.id}`,null);draw();toast('Left the club')}
+function sendMsg(){const i=$('mi');if(!i||!curClub)return;const v=i.value.trim().slice(0,300);if(!v)return;const id='m'+uid();
+ dbSet(`clubmsgs/${curClub}/${id}`,{id,uid:me.id,who:me.name,txt:v,ts:Date.now()});i.value='';drawMsgs(true);i.focus()}
+function createClub(){const i=$('cn'),name=((i&&i.value)||'').replace(/[<>&"`\\$]/g,'').trim().slice(0,30),ml=myLoc();if(!name){toast('Give your club a name first');return}if(!ml){toast('Set your location first');return}
+ const id='c'+uid();dbSet('clubs/'+id,{id,name,kind:'custom',desc:'Started by '+me.name+'.',lat:ml.lat,lon:ml.lon,city:ml.city||'',region:ml.region||'',members:{[me.id]:1},ts:Date.now(),by:me.id});
+ dbSet(`clubmsgs/${id}/m1`,{id:'m1',uid:'sys',who:'ShelfShare',txt:`Welcome to ${name}! Say hi and tell the group what you’re reading.`,ts:Date.now()});openClub(id);toast('Club created')}
+
+/* auto-created clubs around a new user's location (ids are deterministic, so neighbors share them) */
+const CT=[
+ ['readers','{c} Readers','Everyone reading in and around {c}.','city',0,0,'Welcome to {n}! Introduce yourself and tell us what you’re reading this week.'],
+ ['coffee','Coffee & Chapters, {c}','Casual chat about what’s on your nightstand.','hood',0.6,0.4,'What’s one book you’d recommend to someone who only reads a few a year?'],
+ ['swap','{c} Neighbors Book Swap','Arrange swaps and share pickup spots.','hood',-0.5,-0.8,'Post a book you’d love to swap and where you could meet. Requests are sent from the Discover tab.'],
+ ['classics','{c} Classics Circle','Odysseys, Austens and other books everyone has heard of.','town',-1.8,0.9,'Which classic surprised you by being better (or worse) than you expected?'],
+ ['scifi','Sci-Fi & Fantasy Corner, {c}','Spaceships, dragons and everything in between.','town',2.4,-1.7,'Best opening chapter you’ve ever read? Spoiler warnings, please.'],
+ ['state','{s} Book Lovers','Readers across the state.','state',9,6,'Hello from across {s}! Which local library or bookstore deserves a shout-out?']];
+function ensureClubs(){const loc=myLoc();if(!loc)return;
+ const c=loc.city||'Your Area',s=loc.region||'Statewide',base=slug((loc.city||'local')+'-'+(loc.region||'')),u=(DB.users||{})[me.id]||{};
+ const make=(id,name,desc,kind,lat,lon,first)=>{if(((DB.clubs||{})[id]))return;
+  dbSet('clubs/'+id,{id,name,desc,kind,lat,lon,city:loc.city||'',region:loc.region||'',ts:Date.now(),auto:1});
+  dbSet(`clubmsgs/${id}/m1`,{id:'m1',uid:'sys',who:'ShelfShare',txt:first,ts:Date.now()})};
+ CT.forEach(([k,n,d,kind,dx,dy,first])=>{const name=n.replace('{c}',c).replace('{s}',s);
+  make('auto-'+base+'-'+k,name,d.replace('{c}',c),kind,Math.round((loc.lat+dy/69)*1000)/1000,Math.round((loc.lon+dx/(69*Math.cos(rad(loc.lat))))*1000)/1000,first.replace('{n}',name).replace('{s}',s))});
+ const unit=(u.unit||'').trim(),mine=['auto-'+base+'-readers'];
+ if(unit&&slug(unit)){const id='bld-'+slug(unit)+'-'+base;make(id,unit+' Book Club','Neighbors of '+unit+'. Swap books and talk about what you’re reading.','building',loc.lat,loc.lon,`Welcome, neighbors of ${unit}! Say hi and share a book from your shelf.`);mine.unshift(id)}
+ mine.forEach(id=>{if(!((((DB.clubs||{})[id]||{}).members||{})[me.id]))dbSet(`clubs/${id}/members/${me.id}`,1)})}
+
+/* leaderboard */
+function board(metric,range){const U=DB.users||{},ml=myLoc(),rg=RANGES.find(x=>x[0]===range);
+ const rows=Object.entries(U).filter(([id,u])=>{if(id===me.id)return true;if(!ml||!u.loc)return false;
+  if(rg[2]==null)return slug(u.loc.region)===slug(ml.region)&&(u.loc.cc||'')===(ml.cc||'');const d=dist(ml,u.loc);return d!=null&&d<=rg[2]})
+  .map(([id,u])=>({id,name:u.name||id,place:u.unit||(u.loc&&u.loc.city)||'',score:stats(id)[metric]}));
+ rows.sort((a,b)=>b.score-a.score||a.name.localeCompare(b.name));
+ rows.forEach((r,i)=>{r.rank=i&&rows[i-1].score===r.score?rows[i-1].rank:i+1});return rows}
+function leaderboard(){const rows=board(lbM,lbR),mineR=rows.find(r=>r.id===me.id),rg=RANGES.find(x=>x[0]===lbR),ml=myLoc();
+ return `<div class="seg"><button class="${lbM==='read'?'on':''}" onclick="lbM='read';draw()">Books read</button><button class="${lbM==='lent'?'on':''}" onclick="lbM='lent';draw()">Books lent</button></div>
+ <div class="row" style="margin-top:0">${RANGES.map(([k,n])=>`<button class="chip ${lbR===k?'on':''}" onclick="lbR='${k}';draw()">${n}</button>`).join('')}</div>
+ <p style="color:var(--mut);font-size:13px;margin:-4px 0 12px">${rg[2]?`Readers within ${rg[2]} mi of you.`:`Readers in ${esc((ml&&ml.region)||'your state')}.`}${mineR?` You’re #${mineR.rank} of ${rows.length}.`:''}</p>
+ ${rows.map(r=>`<div class="card item lb ${r.id===me.id?'me':''}"><div class="rk r${r.rank}">${r.rank}</div><div class="pa" style="--c:var(--pine)">${esc((r.name||'?')[0])}</div><div><b>${esc(r.name)}${r.id===me.id?' (you)':''}</b><small>${esc(r.place)}</small></div><div class="sc"><b>${r.score}</b><small>${lbM==='read'?'read':'lent'}</small></div></div>`).join('')}
+ ${rows.length<2?`<div class="card empty"><b class="serif" style="font-size:16px">You’re the only one here so far</b><p>Mark books as read on your shelf, or lend a book to get on the board. Try a wider range to see more readers.</p></div>`:''}`}
+
+/* ---------- notifications ---------- */
 function notify(){const R=Object.values(DB.requests||{}),cur={};R.forEach(r=>{if(r.to===me.id||r.from===me.id)cur[r.id]=r.status});
- if(seen)R.forEach(r=>{if(r.to===me.id&&!(r.id in seen)){unread++;toast(`${r.fromName} wants to borrow ${r.t}`)}else if(r.from===me.id&&seen[r.id]&&seen[r.id]!==r.status&&r.status!=='returned'){unread++;toast(r.status==='approved'?`${r.toName} approved ${r.t}. Check Activity`:`${r.toName} declined ${r.t}`)}});seen=cur}
-function realReq(b){const id='r'+Date.now()+Math.floor(Math.random()*99);dbSet('requests/'+id,{id,bookId:b.id,t:b.t,a:b.a,c:b.c,from:me.id,fromName:me.name,to:b.uid,toName:b.o,status:'pending',ts:Date.now()});if(seen)seen[id]='pending';asec='share';go('a');toast('Request sent to '+b.o)}
-function apR(id,ok){const r=DB.requests[id];if(!r)return;dbSet('requests/'+id,{...r,status:ok?'approved':'declined',appTs:Date.now()});rebuild();draw();toast(ok?`${r.fromName} has been told. ${r.t} is marked as lent`:'Request declined')}
-function retR(id){const r=DB.requests[id];if(!r)return;dbSet('requests/'+id,{...r,status:'returned'});rebuild();draw();toast('Marked as returned. It’s back on your shelf')}
+ if(seen)R.forEach(r=>{if(r.to===me.id&&!(r.id in seen)){if(r.status==='pending')toast(`${r.fromName} wants to borrow ${r.t}`)}
+  else if(r.from===me.id&&seen[r.id]&&seen[r.id]!==r.status&&r.status!=='returned'){upd++;toast(r.status==='approved'?`${r.toName} approved ${r.t}. Check Activity`:`${r.toName} declined ${r.t}`)}});
+ seen=cur;
+ if(tnote)tItems().forEach(i=>{if(!tnote.has(i.key)){tnote.add(i.key);toast(i.text)}})}
+function badge(){const R=Object.values(DB.requests||{});let n=R.filter(r=>r.to===me.id&&r.status==='pending').length+upd;if(tseen)n+=tItems().filter(i=>i.fresh).length;return n}
+
+/* ---------- sign-up / login ---------- */
+function showLoc(){const e=$('locline');if(!e)return;
+ if(locSt==='detecting'){e.innerHTML='Finding your area…';return}
+ if(LOC&&LOC.src!=='default')e.innerHTML=`${ic('pin')} Near <b>${esc(locLabel(LOC))}</b><br><button class="chip" onclick="preciseLoc()">${LOC.src==='gps'?'Precise location on ✓':'Use precise location'}</button>`;
+ else e.innerHTML=`Couldn’t detect your area automatically. Pick the closest:<select id="lsel" class="ri" aria-label="Closest city" onchange="pickPreset(this.value)">${PRESETS.map((p,i)=>`<option value="${i}" ${LOC&&LOC.city===p.city?'selected':''}>${esc(p.city)}, ${esc(p.region)}</option>`).join('')}</select><button class="chip" style="margin-top:8px" onclick="preciseLoc()">Or use precise location</button>`}
+function detectLoc(){if(locP)return locP;locSt='detecting';showLoc();
+ locP=ipLoc().then(l=>{LOC=l||{...PRESETS[0],src:'default'};locSt=l?'ok':'failed';showLoc();return LOC});return locP}
+function pickPreset(i){LOC={...PRESETS[+i],src:'manual'};locSt='ok';if(!me)showLoc()}
+function preciseLoc(){const e=$('locline');if(e)e.innerHTML='Waiting for your browser’s permission…';
+ gpsLoc().then(l=>{LOC=l;locSt='ok';if(me){dbSet(`users/${me.id}/loc`,l);rebuild();draw();toast('Location updated')}else showLoc()})
+ .catch(()=>{if(me)toast('Couldn’t get precise location. Check your browser’s permission.');else showLoc()})}
 function onboard(){return `<div style="min-height:100%;display:flex;flex-direction:column;justify-content:center"><h1 style="font-size:38px;text-align:center">ShelfShare</h1><p class="tag-l" style="font-size:15px;text-align:center;margin-bottom:18px">One Shared Shelf</p>
  <div class="pair big" style="justify-content:center;margin-bottom:18px">${POOL.slice(0,3).map(b=>cv(b)).join('')}</div>
  <label class="lbl" for="un" style="margin-top:0">What should neighbors call you?</label><input id="un" class="ri" style="width:100%;border-radius:14px;padding:12px" maxlength="20" placeholder="e.g. Alex" autocomplete="off" onkeydown="if(event.key==='Enter')signUp()">
- <label class="lbl" for="ut">Where are you? <span style="font-weight:400;color:var(--mut)">(optional)</span></label><input id="ut" class="ri" style="width:100%;border-radius:14px;padding:12px" maxlength="20" placeholder="e.g. Unit 3B or Midtown" autocomplete="off" onkeydown="if(event.key==='Enter')signUp()">
+ <label class="lbl" for="ut">Your building or neighborhood <span style="font-weight:400;color:var(--mut)">(optional)</span></label><input id="ut" class="ri" style="width:100%;border-radius:14px;padding:12px" maxlength="30" placeholder="e.g. Maple Court Apartments" autocomplete="off" onkeydown="if(event.key==='Enter')signUp()">
+ <p id="locline" class="loc"></p>
  <button class="btn acc" onclick="signUp()">Create account</button>
  <p style="color:var(--mut);font-size:13px;margin-top:12px;text-align:center">We’ll put three classics on your shelf so neighbors have something to borrow right away. Already signed up? Enter the same name to log back in.</p>
- <p class="tag" style="margin:10px auto 0;text-align:center">${LIVE?'Live: everyone on this site shares one neighborhood':'Local mode: accounts live in this browser only'}</p></div>`}
+ <p class="tag" style="margin:10px auto 0;text-align:center">${LIVE?'Live: everyone on this site shares one neighborhood':'Local mode: accounts live in this browser only'}</p>
+ <p class="loc" style="font-size:12px">We use your connection to find your approximate area. Neighbors only see roughly where you are (rounded to under a mile), never your address.</p></div>`}
+async function afterLogin(){ls.set('ss_me',JSON.stringify(me));rebuild();
+ if(!myLoc()){const l=LOC||await detectLoc();dbSet(`users/${me.id}/loc`,l)}
+ rebuild();ensureClubs();
+ let ts=[];try{ts=JSON.parse(ls.get('ss_ts_'+me.id)||'[]')}catch(e){}tseen=new Set(ts);tnote=new Set(tItems().map(i=>i.key));seen=null;upd=0;notify()}
 async function signUp(){await sync(true);if(!DBok){toast('Can’t reach the server. Check your connection.');return}
- const cl=s=>s.replace(/[^\p{L}\p{N} .'’-]/gu,'').trim().slice(0,20),name=cl($('un').value),unit=cl($('ut').value);if(!name){toast('Enter a name first');return}
- const id=name.toLowerCase().replace(/[^\p{L}\p{N}]+/gu,'-').replace(/^-|-$/g,'')||'neighbor',U=DB.users||{};let fresh=false;
- if(U[id])me={id,name:U[id].name,unit:U[id].unit};else{fresh=true;
+ const cl=s=>s.replace(/[^\p{L}\p{N} .'’-]/gu,'').trim().slice(0,30),name=cl($('un').value).slice(0,20),unit=cl($('ut').value);if(!name){toast('Enter a name first');return}
+ let id=slug(name)||'neighbor';if(/^\d+$/.test(id))id='u-'+id;const U=DB.users||{};let fresh=false;
+ if(U[id])me={id,name:U[id].name,unit:U[id].unit};
+ else{fresh=true;
+  const loc=await Promise.race([detectLoc(),new Promise(r=>setTimeout(()=>r(LOC||{...PRESETS[0],src:'default'}),6000))]);
   const held={};Object.values(U).forEach(u=>Object.values(u.books||{}).forEach(b=>held[b.t]=(held[b.t]||0)+1));
   const pick=POOL.map((b,i)=>[b,i]).sort((x,y)=>(held[x[0].t]||0)-(held[y[0].t]||0)||x[1]-y[1]).slice(0,3).map(x=>x[0]),t0=Date.now()*10,books={};
   pick.forEach((b,i)=>books['b'+(t0+i)]={id:t0+i,t:b.t,a:b.a,c:b.c,on:1});
-  await dbSet('users/'+id,{name,unit,joined:Date.now(),books});me={id,name,unit}}
- ls.set('ss_me',JSON.stringify(me));tab='d';rebuild();seedWorld();draw();toast(fresh?`Welcome, ${name}. Three books are now on your shelf`:`Welcome back, ${name}`)}
-function signOut(auto){ls.del('ss_me');me=null;seen=null;tab='d';asec='share';draw();if(auto)toast('Account not found. Please sign up again.')}
-async function sync(force){if(pend)return;let d;try{d=scrub(await load());DBok=true}catch(e){return}const j=JSON.stringify(d);if(j===last&&!force)return;last=j;DB=d;if(!me)return;if(!(DB.users||{})[me.id]){signOut(1);return}
- rebuild();notify();const ae=document.activeElement;if(['d','a','p'].includes(tab)&&!document.querySelector('.scrim,.scrim2')&&!(ae&&/INPUT|TEXTAREA/.test(ae.tagName)))draw();else tabs()}
-function seeT(id){go('f');document.getElementById('r'+id).scrollIntoView({block:'center'})}
-function tabs(){$('tabs').innerHTML=[['d','Discover'],['f','Feed'],['s','Add'],['a','Activity'],['p','Me']].map(([k,n])=>k==='s'?`<button class="scan" onclick="go('s')"><span>${ic('s')}</span>${n}</button>`:`<button class="${tab===k||(tab==='detail'&&k==='d')||(tab==='post'&&k==='f')?'on':''}" onclick="go('${k}')">${ic(k)}${n}${k==='a'&&unread?`<b class="dot">${unread}</b>`:''}</button>`).join('')}
-function draw(){const s=$('screen');s.className='';if(!me){s.innerHTML=onboard();$('tabs').innerHTML='';return}s.innerHTML={d:discover,detail,f:feed,post:compose,s:scan,p:profile,a:activity}[tab]();tabs()}
-setInterval(()=>sync(),2500);addEventListener('storage',()=>sync());
+  await dbSet('users/'+id,{name,unit,joined:Date.now(),loc:{lat:loc.lat,lon:loc.lon,city:loc.city||'',region:loc.region||'',cc:loc.cc||'',src:loc.src||'ip'},books});me={id,name,unit}}
+ tab='d';curClub=null;await afterLogin();draw();toast(fresh?`Welcome, ${name}. Three books are now on your shelf`:`Welcome back, ${name}`)}
+function signOut(auto){ls.del('ss_me');me=null;seen=null;tseen=null;tnote=null;tab='d';asec='share';csec='clubs';curClub=null;ropen=null;upd=0;draw();if(auto)toast('Account not found. Please sign up again.')}
+
+/* ---------- sync ---------- */
+async function sync(force){if(pend)return;const w0=wver;let d;try{d=scrub(await load());DBok=true}catch(e){return}
+ if(pend||wver!==w0)return;
+ const j=JSON.stringify(d);if(j===last&&!force)return;last=j;DB=d;if(!me)return;if(!(DB.users||{})[me.id]){signOut(1);return}
+ rebuild();notify();
+ const ae=document.activeElement,typing=ae&&/INPUT|TEXTAREA|SELECT/.test(ae.tagName);
+ if(tab==='u'&&curClub){drawMsgs();tabs();return}
+ if(['d','a','p','u'].includes(tab)&&!document.querySelector('.scrim,.scrim2')&&!typing)draw();else tabs()}
+
+/* ---------- shell ---------- */
+const TABS=[['d','Discover'],['f','Feed'],['s','Add'],['u','Community'],['a','Activity'],['p','Me']];
+function tabs(){if(!me){$('tabs').innerHTML='';return}const b=badge();
+ $('tabs').innerHTML=TABS.map(([k,n])=>k==='s'?`<button class="scan" onclick="go('s')"><span>${ic('s')}</span>${n}</button>`:`<button class="${tab===k||(tab==='detail'&&k==='d')||(tab==='post'&&k==='f')?'on':''}" onclick="go('${k}')">${ic(k)}${n}${k==='a'&&b?`<b class="dot">${b}</b>`:''}</button>`).join('')}
+const VIEWS={d:discover,detail,f:feed,post:compose,s:scan,u:community,a:activity,p:profile};
+function draw(){const s=$('screen');s.className=(me&&tab==='u'&&curClub)?'flush':'';
+ if(!me){s.innerHTML=onboard();$('tabs').innerHTML='';showLoc();detectLoc();return}
+ s.innerHTML=VIEWS[tab]();tabs();if(tab==='u'&&curClub)afterChat()}
+setInterval(()=>{if(!document.hidden)sync()},2500);addEventListener('storage',()=>sync());
 (async()=>{$('screen').innerHTML='<p style="color:var(--mut);margin-top:40%;text-align:center">Loading…</p>';await sync(true);let sv=null;try{sv=JSON.parse(ls.get('ss_me')||'null')}catch(e){}
- if(sv&&(DB.users||{})[sv.id]){me=sv;seedWorld()}draw()})();
+ if(sv&&(DB.users||{})[sv.id]){me=sv;await afterLogin()}draw()})();
+
 </script></body></html>
