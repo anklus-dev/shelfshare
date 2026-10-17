@@ -19,6 +19,16 @@ A neighborhood book-lending app demo (HackATL). One static page, no build step. 
 - **Book clubs.** Chats sorted by distance. Each area gets starter clubs automatically (city, neighborhood, classics, sci-fi, swap, statewide), each with a welcome message from ShelfShare. If you enter a building or neighborhood name at sign-up, you're added to a club for it (neighbors typing the same name share one). Anyone can start a club.
 - **Leaderboard** (Community → Leaderboard): books read or books lent, for Neighborhood (3 mi), Town (10 mi), City (30 mi) or State (same state).
 
+- **Activity** (requests, loans, Thoughtstream) is now the bell at the top right, which keeps the bottom dock balanced.
+
+## Camera scanning
+- **Add** opens the camera and reads the ISBN barcode on the back cover (hold it steady, fill the frame; the light button helps in dim rooms). Two matching reads are required and the ISBN checksum is verified, so a misread is very unlikely.
+- Decoder: the browser's built-in BarcodeDetector where it works (Chrome/Android), otherwise a bundled ZXing WebAssembly decoder in `vendor/` (iPhone Safari, Firefox, desktop). No external CDN. Keep the `vendor/` folder next to `index.html`.
+- Lookup: **Open Library** first (free, open, no key), then **Google Books** if Open Library has no record or no cover. Covers are saved with the book and show everywhere it appears.
+- Backups if the camera can't be used (blocked permission, in-app browser): **take a photo** of the barcode, **type the ISBN** (10 or 13 digits), or **add by title**.
+- The camera needs https, which GitHub Pages provides. The browser will ask for camera permission the first time.
+- Open Library is community-maintained, so a brand-new or obscure edition can be missing. That is why Google Books is the backup and manual entry always works.
+
 ## Location details
 
 - IP lookup tries ipwho.is, then get.geojs.io, then ipapi.co (free, no keys). Reverse lookup for GPS uses api.bigdatacloud.net. If every lookup fails (blocked network, VPN, ad blocker), the sign-up screen shows a city picker (Georgia cities) and defaults to Atlanta.

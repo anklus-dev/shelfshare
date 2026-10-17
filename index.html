@@ -122,8 +122,32 @@ input[type=number]{width:80px;border:1px solid var(--line);border-radius:10px;pa
 select.ri{border-radius:12px;width:100%;margin-top:6px}
 .empty{text-align:center;padding:22px 16px}.empty p{color:var(--mut);margin:6px 0 0}
 .chip svg{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+#bar{display:none;align-items:center;justify-content:space-between;padding:10px 16px 0}
+#bar .wm{font:700 20px Fraunces,Georgia,serif}
+#bar+#screen:not(.flush){padding-top:8px}
+.bell{position:relative;width:40px;height:40px;border-radius:50%;background:var(--card);border:1px solid var(--line);display:grid;place-items:center;color:var(--ink)}
+.bell.on{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.bell svg{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.bell .dot{top:-3px;right:-3px}
+.tabs .scan span{height:38px;margin-top:-16px}
+.cover .ci{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:0}
+.cover.img>span,.cover.img>i,.cover.img .art{display:none}
+.view{height:340px;display:block}
+.view::before{inset:34px 26px;z-index:2;pointer-events:none}
+.view video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;background:#1c130e}
+.view .bar{left:30px;right:30px;top:44px;z-index:3}
+.view.go .bar{animation:sc2 1.6s ease-in-out infinite alternate}
+@keyframes sc2{to{top:294px}}
+.view.off video,.view.off .bar,.view.off::before{display:none}
+.vmsg{position:absolute;left:12px;right:12px;bottom:10px;z-index:4;text-align:center;font-size:13px;color:#fff;text-shadow:0 1px 4px rgba(0,0,0,.8);line-height:1.3}
+.view.off .vmsg{top:50%;bottom:auto;transform:translateY(-50%);color:#e9c98f;text-shadow:none;padding:0 14px}
+.vtools{position:absolute;right:10px;top:10px;z-index:4;display:flex;gap:6px}
+.view.off .vtools{top:auto;right:auto;left:0;right:0;bottom:16px;justify-content:center}
+.spin{width:30px;height:30px;border:3px solid var(--line,#d9c7a8);border-top-color:var(--acc);border-radius:50%;margin:0 auto 10px;animation:spn .8s linear infinite}
+@keyframes spn{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){.view.go .bar,.spin{animation-duration:3s}}
 </style></head><body>
-<div id="app"><main id="screen"></main><nav class="tabs" id="tabs"></nav></div>
+<div id="app"><header id="bar"></header><main id="screen"></main><nav class="tabs" id="tabs"></nav></div>
 <script>
 const CFG={FIREBASE_URL:'https://shelfshare-11e68-default-rtdb.firebaseio.com/'}; // Firebase Realtime Database URL (see README.md)
 const LIVE=!!CFG.FIREBASE_URL,BASE=CFG.FIREBASE_URL.replace(/\/$/,'');
@@ -169,7 +193,7 @@ function gpsLoc(){return new Promise((res,rej)=>{if(!navigator.geolocation)retur
 const locLabel=l=>l?([l.city,l.region].filter(Boolean).join(', ')||'your area'):'';
 
 /* ---------- app state ---------- */
-let lib=[],want=[],near=[],asec='share',csec='clubs',curClub=null,ropen=null,rng=30,pop=0,tab='d',filt='all',seg='mine',det=null,scanSt=0,upd=0,newB=null,lbM='read',lbR='town',tseen=null,tnote=null,lastMsgHtml='';
+let COV={},lib=[],want=[],near=[],asec='share',csec='clubs',curClub=null,ropen=null,rng=30,pop=0,tab='d',filt='all',seg='mine',det=null,scanSt=0,upd=0,newB=null,lbM='read',lbR='town',tseen=null,tnote=null,lastMsgHtml='';
 let pc={b:0,mode:'Page',n:112,txt:'I can’t believe I waited this long to read it. The opening hooked me instantly.',sp:0};
 const STL={pending:'Waiting',approved:'Accepted',declined:'Declined',returned:'Returned'};
 const RANGES=[['hood','Neighborhood',3],['town','Town',10],['city','City',30],['state','State',null]];
@@ -200,7 +224,7 @@ const ART={
 'Gilead':'<path d="M0 150v-20h100v20z" fill="#00000040"/><path d="M50 135V92" stroke="#f6e3a3" stroke-width="2"/><path d="M50 104q-10-8-8-18q10 4 8 18zM50 104q10-8 8-18q-10 4-8 18zM50 92q-8-8-6-17q8 4 6 17zM50 92q8-8 6-17q-8 4-6 17z" fill="#f6e3a3"/>',
 'Station Eleven':'<path d="M0 150V112l12 8 12-8 12 8 12-8 12 8 12-8 12 8 16-8v38z" fill="#00000050"/><circle cx="70" cy="82" r="3" fill="#fff"/><circle cx="30" cy="96" r="2" fill="#fff"/><circle cx="50" cy="72" r="1.5" fill="#fff"/>',
 'Middlemarch':'<rect x="18" y="82" width="26" height="46" rx="13" fill="#ffe9b0" opacity=".85"/><rect x="56" y="82" width="26" height="46" rx="13" fill="#ffe9b0" opacity=".5"/><path d="M0 134h100v16H0z" fill="#00000050"/>'};
-const cv=(b,x='')=>`<div class="cover ${x}" style="--c:${esc(b.c)}"><svg class="art" viewBox="0 0 100 150" preserveAspectRatio="xMidYMid slice" aria-hidden="true">${ART[b.t]||auto(b.t)}</svg><span>${esc(b.t)}</span><i>${esc(b.a||'')}</i></div>`;
+const cv=(b,x='')=>`<div class="cover ${x}" style="--c:${esc(b.c)}"><svg class="art" viewBox="0 0 100 150" preserveAspectRatio="xMidYMid slice" aria-hidden="true">${ART[b.t]||auto(b.t)}</svg>${cvImg(b)}<span>${esc(b.t)}</span><i>${esc(b.a||'')}</i></div>`;
 const ic=k=>`<svg viewBox="0 0 24 24">${I[k]}</svg>`;
 function toast(m){document.querySelectorAll('.toast').forEach(e=>e.remove());const t=document.createElement('div');t.className='toast';t.textContent=m;$('app').appendChild(t);setTimeout(()=>t.remove(),2800)}
 
@@ -210,6 +234,7 @@ function go(t,d){tab=t;det=d||null;if(t==='a')upd=0;if(t==='u')curClub=null;scan
 /* ---------- derived data ---------- */
 function rebuild(){
  const U=DB.users||{},R=Object.values(DB.requests||{}),meU=U[me.id]||{},ml=meU.loc,su=slug(meU.unit||'');
+ COV={};Object.values(U).forEach(u=>Object.values(u.books||{}).forEach(b=>{if(b.cu)COV[slug(b.t)]=b.cu}));
  const lentIds=new Set(R.filter(r=>r.status==='approved').map(r=>r.bookId));
  lib=Object.values(meU.books||{}).sort((x,y)=>x.id-y.id).map(b=>{const r=R.find(r=>r.bookId===b.id&&r.status==='approved');return {...b,lent:r&&r.fromName,due:r&&daysLeft(r),rid:r&&r.id,read:isRead(b.t)}});
  want=Object.values(meU.want||{});
@@ -227,7 +252,7 @@ function popup(){return `<div class="scrim" onclick="pop=0;draw()"><div class="s
 function discover(){
  const l=near.filter(b=>b.mi<=rng&&(filt==='all'||(filt==='b'&&b.b)||(filt==='n'&&!b.b))),ml=myLoc();
  let m=null;for(const b of near){if(b.mi>rng)continue;const mine=swapFor(b);if(mine){m={b,mine};break}}
- return `<div class="top"><div><h1>ShelfShare</h1><div class="tag-l">One Shared Shelf${ml&&ml.city?' · Near '+esc(ml.city):''}</div></div><button class="chip" onclick="pop=1;draw()" aria-label="Change search range">Within ${rng} mi ▾</button></div>${pop?popup():''}
+ return `<div class="top"><div><h1>Discover</h1><div class="tag-l">One Shared Shelf${ml&&ml.city?' · Near '+esc(ml.city):''}</div></div><button class="chip" onclick="pop=1;draw()" aria-label="Change search range">Within ${rng} mi ▾</button></div>${pop?popup():''}
  ${m?`<button class="match" onclick="go('detail',${m.b.id})"><div class="pair">${cv(m.b)}${cv(m.mine)}</div><div><b>Swap match with ${esc(m.b.o)}</b>${esc(m.b.o)} has ${esc(m.b.t)}, which you want. You have ${esc(m.mine.t)}, which ${esc(m.b.o)} wants.</div></button>`:''}
  <div class="row">${[['all','All nearby'],['b','My building'],['n','Outside my building']].map(([k,n])=>`<button class="chip ${filt===k?'on':''}" onclick="filt='${k}';draw()">${n}</button>`).join('')}</div>
  ${l.length?`<div class="grid">${l.map(b=>`<button class="bk" onclick="go('detail',${b.id})">${cv(b)}<p>${esc(b.t)}</p><small>${esc(b.o)} · ${esc(b.w)}</small><small>${b.b?'In your building':esc(b.d)}</small></button>`).join('')}</div>`
@@ -308,19 +333,6 @@ function postT(){const r=readingList()[pc.b];if(!r)return;const id='t'+uid();
  dbSet('thoughts/'+id,{id,uid:me.id,who:me.name,t:r.t,a:r.a||'',c:r.c||'',loc:(pc.mode==='Page'?'p. ':'Ch. ')+(String(pc.n).replace(/\D/g,'')||'1'),txt:(pc.txt||'').trim().slice(0,280)||'Still thinking about this one.',spoil:pc.sp?1:0,ts:Date.now(),lender:r.lender||''});
  pc.txt='';pc.sp=0;tab='f';draw();$('screen').scrollTop=0;toast(r.from?`Shared. ${r.from} can see what you think of their copy`:'Thought shared with your neighbors')}
 
-/* ---------- add a book ---------- */
-const SCAN=[{t:'The Overstory',a:'Richard Powers',c:'#4E6B3E',i:'9780393635522'},{t:'Piranesi',a:'Susanna Clarke',c:'#5B4B3A',i:'9781635575637'},{t:'Station Eleven',a:'Emily St. John Mandel',c:'#6A4A5A',i:'9780804172448'},{t:'Project Hail Mary',a:'Andy Weir',c:'#C1502E',i:'9780593135204'},{t:'Klara and the Sun',a:'Kazuo Ishiguro',c:'#B88A2E',i:'9780593318171'},{t:'Braiding Sweetgrass',a:'Robin Wall Kimmerer',c:'#7A8541',i:'9781571313560'},{t:'Dune',a:'Frank Herbert',c:'#B5651D',i:'9780441013593'},{t:'Circe',a:'Madeline Miller',c:'#8C4A3C',i:'9780316556347'},{t:'Educated',a:'Tara Westover',c:'#7A4B6B',i:'9780399590504'},{t:'The Hobbit',a:'J.R.R. Tolkien',c:'#4F6F3A',i:'9780547928227'}];
-const SWATCH=['#8C4A3C','#5B4B3A','#7A8541','#6A4A5A','#B07A2A','#4E6B3E','#7A4B2A','#8A5A44'];
-function scan(){
- if(scanSt===3)return `<button class="back" onclick="scanSt=0;draw()">‹ Back to scanner</button><div class="top"><h1>Add by title</h1></div><label class="lbl" for="mt" style="margin-top:0">Title</label><input id="mt" class="ri" style="width:100%;border-radius:14px;padding:12px" maxlength="60" autocomplete="off"><label class="lbl" for="ma">Author <span style="font-weight:400;color:var(--mut)">(optional)</span></label><input id="ma" class="ri" style="width:100%;border-radius:14px;padding:12px" maxlength="40" autocomplete="off" onkeydown="if(event.key==='Enter')addManual()"><button class="btn acc" onclick="addManual()">Add to my shelf</button>`;
- return `<div class="top"><h1>Add a book</h1></div>
- <div class="view ${scanSt===1?'go':''}"><div class="bar"></div><div class="isbn">${scanSt===0?'Point your camera at the barcode':scanSt===1?'Reading barcode...':esc(newB.i||'')}</div></div>
- ${scanSt===0?`<button class="btn acc" onclick="doScan()">Scan barcode</button><button class="btn ghost" onclick="scanSt=3;draw()">Add by title instead</button>`:''}
- ${scanSt===2?`<div class="card item">${cv(newB)}<div><b>${esc(newB.t)}</b><small>${esc(newB.a)}</small><small>Found in 1 second</small></div></div><button class="btn acc" onclick="addB()">Add to my shelf</button><button class="btn ghost" onclick="scanSt=0;draw()">Scan another</button>`:''}`}
-function doScan(){newB=SCAN.find(b=>!lib.some(x=>slug(x.t)===slug(b.t)))||SCAN[SCAN.length-1];scanSt=1;draw();setTimeout(()=>{if(tab==='s'&&scanSt===1){scanSt=2;draw()}},1800)}
-function addManual(){const t=(($('mt')||{}).value||'').replace(/[<>&"`\\$]/g,'').trim().slice(0,60),a=(($('ma')||{}).value||'').replace(/[<>&"`\\$]/g,'').trim().slice(0,40);if(!t){toast('Enter a title first');return}
- const h=[...t].reduce((x,c)=>(x*31+c.charCodeAt(0))>>>0,7);newB={t,a,c:SWATCH[h%SWATCH.length]};addB()}
-function addB(){const id=Date.now()*10;dbSet(`users/${me.id}/books/b${id}`,{id,t:newB.t,a:newB.a||'',c:newB.c,on:1});rebuild();seg='mine';go('p');toast(`${newB.t} added. Neighbors can now borrow it`)}
 
 /* ---------- profile ---------- */
 function stats(id){const u=(DB.users||{})[id]||{};return {read:Object.keys(u.read||{}).length,lent:Object.values(DB.requests||{}).filter(r=>r.to===id&&(r.status==='approved'||r.status==='returned')).length}}
@@ -356,6 +368,135 @@ function activity(){
  const lo=lent.map(b=>`<div class="card item">${cv(b)}<div><b>${esc(b.t)}</b><small>With ${esc(b.lent)}</small><span class="tag">Returns in ${dl(b.due||7)}</span>${b.rid?`<button class="chip" style="margin-left:6px" onclick="retR('${b.rid}')">Mark returned</button>`:''}</div></div>`).join('');
  const none=!rq&&!ot&&!bo&&!lo;
  return head+(none?`<div class="card empty"><b class="serif" style="font-size:18px">No activity yet</b><p>Find a book on Discover and send your first request.</p><button class="btn acc" onclick="go('d')">Browse books</button></div>`:'')+(rq?`<h3 class="sec" style="margin-top:4px">Requests for you</h3>`+rq:'')+(ot?`<h3 class="sec">Your requests</h3>`+ot:'')+(bo?`<h3 class="sec">Borrowed by you</h3>`+bo:'')+(lo?`<h3 class="sec">Lent out</h3>`+lo:'')}
+
+/* ---------- add a book: live barcode scanner + book lookup ---------- */
+const SWATCH=['#8C4A3C','#5B4B3A','#7A8541','#6A4A5A','#B07A2A','#4E6B3E','#7A4B2A','#8A5A44'];
+const swatch=t=>SWATCH[[...String(t)].reduce((x,c)=>(x*31+c.charCodeAt(0))>>>0,7)%SWATCH.length];
+const COVER_OK=/^https:\/\/(covers\.openlibrary\.org|archive\.org|books\.google\.com|books\.googleusercontent\.com|[a-z0-9-]+\.us\.archive\.org)\/[^\s"'<>]*$/;
+const coverUrl=b=>{const u=(b&&b.cu)||COV[slug(b&&b.t)];return u&&COVER_OK.test(u)?u:''};
+const cvImg=b=>{const u=coverUrl(b);return u?`<img class="ci" src="${esc(u)}" alt="" loading="lazy" referrerpolicy="no-referrer" onload="if(this.naturalWidth>40)this.parentNode.classList.add('img');else this.remove()" onerror="this.remove()">`:''};
+const clean=(s,n)=>String(s||'').replace(/[<>"`\\]/g,'').replace(/\s+/g,' ').trim().slice(0,n);
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+
+/* ISBN helpers */
+const isbn13ok=s=>/^97[89]\d{10}$/.test(s)&&(10-[...s.slice(0,12)].reduce((a,c,i)=>a+(+c)*(i%2?3:1),0)%10)%10===+s[12];
+function isbn10to13(s){const b='978'+s.slice(0,9),c=(10-[...b].reduce((a,d,i)=>a+(+d)*(i%2?3:1),0)%10)%10;return b+c}
+function normIsbn(raw){let s=String(raw||'').toUpperCase().replace(/[\s-]/g,'');
+ if(/^\d{9}[\dX]$/.test(s)){const sum=[...s].reduce((a,c,i)=>a+(c==='X'?10:+c)*(10-i),0);return sum%11===0?isbn10to13(s):null}
+ if(/^\d{12}$/.test(s))s='0'+s;  // UPC-A is an EAN-13 with a leading zero
+ return isbn13ok(s)?s:null}
+
+/* ---------- camera ---------- */
+const cam={stream:null,track:null,run:0,busy:0,last:'',hits:0,torch:0,zoom:0,msgAt:0,wasm:0};
+const camMsg=t=>{const e=$('vmsg');if(e)e.textContent=t};
+function camStop(){cam.run++;cam.busy=0;cam.last='';cam.hits=0;
+ if(cam.stream)cam.stream.getTracks().forEach(t=>{try{t.stop()}catch(e){}});
+ cam.stream=cam.track=null;cam.torch=0;const v=$('cam');if(v)try{v.srcObject=null}catch(e){}}
+function camTools(){const e=$('vt');if(!e||!cam.track)return;let c={};try{c=cam.track.getCapabilities?cam.track.getCapabilities():{}}catch(x){}
+ e.innerHTML=(c.torch?`<button class="chip ${cam.torch?'on':''}" onclick="camTorch()">${cam.torch?'Light on':'Light'}</button>`:'')+(c.zoom&&c.zoom.max>1.5?`<button class="chip ${cam.zoom?'on':''}" onclick="camZoom()">${cam.zoom?'Zoom 2×':'Zoom'}</button>`:'')}
+async function camTorch(){cam.torch=cam.torch?0:1;try{await cam.track.applyConstraints({advanced:[{torch:!!cam.torch}]})}catch(e){cam.torch=0;toast('This camera has no light')}camTools()}
+async function camZoom(){cam.zoom=cam.zoom?0:1;try{const c=cam.track.getCapabilities().zoom;await cam.track.applyConstraints({advanced:[{zoom:cam.zoom?Math.min(c.max,Math.max(c.min||1,2)):(c.min||1)}]})}catch(e){cam.zoom=0}camTools()}
+function camFail(kind){const m={denied:'Camera access is blocked. Allow it in your browser settings, or use a photo or the ISBN box below.',nocam:'No camera found on this device. Use a photo or type the ISBN below.',busy:'The camera is in use by another app. Close it and try again, or use the options below.',insecure:'Camera needs a secure (https) page. Use a photo or type the ISBN below.',other:'Couldn’t start the camera. Use a photo or type the ISBN below.'}[kind]||'';
+ const w=$('vw');if(w)w.classList.add('off');camMsg(m);const e=$('vt');if(e&&kind!=='nocam'&&kind!=='insecure')e.innerHTML='<button class="chip" onclick="camRetry()">Try camera again</button>'}
+function camRetry(){const w=$('vw');if(w)w.classList.remove('off');const e=$('vt');if(e)e.innerHTML='';camStop();camStart()}
+async function camStart(){const v=$('cam');if(!v||scanSt!==0||tab!=='s')return;
+ if(cam.stream){if(v.srcObject!==cam.stream){v.srcObject=cam.stream;try{await v.play()}catch(e){}}camTools();return}
+ if(cam.busy)return;
+ const md=navigator.mediaDevices;if(!md||!md.getUserMedia){camFail(window.isSecureContext===false?'insecure':'nocam');return}
+ cam.busy=1;const my=++cam.run;camMsg('Starting camera…');let s=null,err=null;
+ for(const c of [{video:{facingMode:{ideal:'environment'},width:{ideal:1920},height:{ideal:1080}},audio:false},{video:{facingMode:'environment'},audio:false},{video:true,audio:false}]){
+  try{s=await md.getUserMedia(c);break}catch(e){err=e;if(e&&(e.name==='NotAllowedError'||e.name==='SecurityError'))break}}
+ if(my!==cam.run||tab!=='s'||scanSt!==0){if(s)s.getTracks().forEach(t=>t.stop());return}
+ cam.busy=0;
+ if(!s){const n=err&&err.name;camFail(n==='NotAllowedError'||n==='SecurityError'?'denied':n==='NotFoundError'||n==='DevicesNotFoundError'?'nocam':n==='NotReadableError'||n==='TrackStartError'?'busy':'other');return}
+ cam.stream=s;cam.track=s.getVideoTracks()[0];const vv=$('cam');if(!vv){camStop();return}
+ vv.srcObject=s;try{await vv.play()}catch(e){}
+ try{const cp=cam.track.getCapabilities?cam.track.getCapabilities():{};if(cp.focusMode&&cp.focusMode.includes('continuous'))await cam.track.applyConstraints({advanced:[{focusMode:'continuous'}]})}catch(e){}
+ cam.run=my;camTools();camMsg('Point at the barcode on the back cover');const w=$('vw');if(w)w.classList.add('go');camLoop(my)}
+
+/* ---------- decoder: native BarcodeDetector where it works, bundled ZXing (WebAssembly) everywhere else ---------- */
+const BC_FORMATS=['ean_13','upc_a','ean_8','upc_e'];
+let detP=null;
+function loadScript(src){return new Promise((res,rej)=>{const s=document.createElement('script');s.src=src;s.onload=res;s.onerror=()=>rej(new Error('script'));document.head.appendChild(s)})}
+function getDet(){if(detP)return detP;
+ detP=(async()=>{
+  if(!cam.wasm&&'BarcodeDetector' in window){try{const sup=await BarcodeDetector.getSupportedFormats();if(sup.includes('ean_13'))return {d:new BarcodeDetector({formats:BC_FORMATS.filter(f=>sup.includes(f))}),n:'native'}}catch(e){}}
+  if(!window.BarcodeDetectionAPI)await loadScript(new URL('vendor/barcode-detector.js',location.href).href);
+  const A=window.BarcodeDetectionAPI,wasm=new URL('vendor/zxing_reader.wasm',location.href).href;
+  A.setZXingModuleOverrides({locateFile:(p,pre)=>/\.wasm$/.test(p)?wasm:pre+p});
+  return {d:new A.BarcodeDetector({formats:BC_FORMATS}),n:'wasm'}})();
+ detP.catch(()=>{detP=null});return detP}
+function drawCrop(src,sx,sy,sw,sh,cvs,max){const k=Math.min(1,max/sw);cvs.width=Math.round(sw*k);cvs.height=Math.round(sh*k);
+ const x=cvs.getContext('2d',{willReadFrequently:true});x.drawImage(src,sx,sy,sw,sh,0,0,cvs.width,cvs.height);return cvs}
+async function detectBook(dd,cvs){let r;try{r=await dd.d.detect(cvs)}catch(e){e.fatal=true;throw e}
+ let book=null,other=false;for(const b of r||[]){const n=normIsbn(b.rawValue);if(n){book=n;break}if(/^\d{8,13}$/.test(b.rawValue||''))other=true}
+ return {book,other}}
+async function camLoop(my){let dd;
+ try{dd=await getDet()}catch(e){camMsg('The scanner couldn’t load. Use a photo or type the ISBN below.');return}
+ const cvs=document.createElement('canvas');let fails=0;
+ while(my===cam.run){
+  const v=$('cam');
+  if(v&&v.readyState>=2&&v.videoWidth&&!document.hidden){
+   // scan exactly what the person sees (the video is shown with object-fit: cover)
+   const W=v.videoWidth,H=v.videoHeight,eW=v.clientWidth||W,eH=v.clientHeight||H,k=Math.max(eW/W,eH/H),sw=Math.min(W,eW/k),sh=Math.min(H,eH/k);
+   try{
+    drawCrop(v,(W-sw)/2,(H-sh)/2,sw,sh,cvs,dd.n==='native'?1600:1280);
+    const r=await detectBook(dd,cvs);fails=0;if(my!==cam.run)return;
+    if(r.book){if(cam.last===r.book)cam.hits++;else{cam.last=r.book;cam.hits=1}if(cam.hits>=2){gotIsbn(r.book,'camera');return}}
+    else{cam.hits=0;cam.last='';if(r.other&&Date.now()-cam.msgAt>2500){cam.msgAt=Date.now();camMsg('That isn’t a book barcode. Look for the one starting with 978.');setTimeout(()=>{if(my===cam.run)camMsg('Point at the barcode on the back cover')},2600)}}
+   }catch(e){
+    if(dd.n==='native'&&++fails>=3){cam.wasm=1;detP=null;try{dd=await getDet()}catch(x){camMsg('The scanner couldn’t load. Use a photo or type the ISBN below.');return}fails=0}
+    else if(dd.n==='wasm'&&++fails>=20){camMsg('The scanner hit a problem. Use a photo or type the ISBN below.');return}}}
+  await sleep(dd.n==='native'?80:120)}}
+
+/* photo of a barcode (works when the live camera can't: blocked permission, in-app browsers, desktop) */
+async function scanPhoto(inp){const f=inp.files&&inp.files[0];inp.value='';if(!f)return;camMsg('Reading photo…');toast('Reading photo…');
+ let dd;try{dd=await getDet()}catch(e){toast('The scanner couldn’t load. Type the ISBN instead.');return}
+ let bmp;try{bmp=await createImageBitmap(f,{imageOrientation:'from-image'})}catch(e){try{bmp=await createImageBitmap(f)}catch(x){toast('Couldn’t open that photo');return}}
+ const cvs=document.createElement('canvas');let found=null;
+ for(const max of [1600,1000,2400,700]){try{drawCrop(bmp,0,0,bmp.width,bmp.height,cvs,max);const r=await detectBook(dd,cvs);if(r.book){found=r.book;break}}catch(e){}}
+ if(bmp.close)bmp.close();
+ if(found)gotIsbn(found,'photo');else toast('No book barcode found in that photo. Try again closer, or type the ISBN.')}
+function isbnGo(){const i=$('isbn'),n=normIsbn(i&&i.value);if(!n){toast('That doesn’t look like a valid ISBN. Check the digits under the barcode.');return}gotIsbn(n,'typed')}
+
+/* ---------- book lookup: Open Library first, Google Books as backup ---------- */
+function fetchT(url,ms){const c=new AbortController(),t=setTimeout(()=>c.abort(),ms);return fetch(url,{signal:c.signal}).finally(()=>clearTimeout(t))}
+function jsonp(url,ms){return new Promise((res,rej)=>{const cb='__ssjp'+Math.random().toString(36).slice(2),s=document.createElement('script');let done=0;
+ const end=f=>{if(done)return;done=1;clearTimeout(t);delete window[cb];s.remove();f()};const t=setTimeout(()=>end(()=>rej(new Error('timeout'))),ms);
+ window[cb]=d=>end(()=>res(d));s.onerror=()=>end(()=>rej(new Error('jsonp')));s.src=url+(url.includes('?')?'&':'?')+'callback='+cb;document.head.appendChild(s)})}
+async function olLookup(i){const u=`https://openlibrary.org/api/books?bibkeys=ISBN:${i}&format=json&jscmd=data`;let j;
+ try{const r=await fetchT(u,7000);if(!r.ok)throw new Error('http '+r.status);j=await r.json()}catch(e){j=await jsonp(u,7000)}
+ const d=j&&j['ISBN:'+i];if(!d||!d.title)return null;
+ return {t:clean(d.title,60),a:clean((d.authors||[]).slice(0,2).map(x=>x.name).join(', '),40),cu:d.cover&&(d.cover.medium||d.cover.large||d.cover.small)||'',src:'Open Library'}}
+async function gbLookup(i){const r=await fetchT(`https://www.googleapis.com/books/v1/volumes?q=isbn:${i}&maxResults=1`,7000);if(!r.ok)throw new Error('http '+r.status);const j=await r.json(),v=j.items&&j.items[0]&&j.items[0].volumeInfo;
+ if(!v||!v.title)return null;const im=v.imageLinks&&(v.imageLinks.thumbnail||v.imageLinks.smallThumbnail)||'';
+ return {t:clean(v.title,60),a:clean((v.authors||[]).slice(0,2).join(', '),40),cu:im.replace(/^http:/,'https:').replace('&edge=curl',''),src:'Google Books'}}
+async function lookupIsbn(i){const [o,g]=await Promise.allSettled([olLookup(i),gbLookup(i)]),ov=o.status==='fulfilled'?o.value:null,gv=g.status==='fulfilled'?g.value:null;
+ if(!ov&&!gv)return o.status==='rejected'&&g.status==='rejected'?{err:1}:{};
+ const b={...(ov||gv)};if(!b.cu&&gv&&gv.cu)b.cu=gv.cu;if(!b.a&&gv&&gv.a)b.a=gv.a;if(b.cu&&!COVER_OK.test(b.cu))b.cu='';return b}
+let lkTok=0;
+async function gotIsbn(i,how){camStop();try{navigator.vibrate&&navigator.vibrate(60)}catch(e){}
+ const tok=++lkTok;newB={i,how};scanSt=5;draw();
+ const r=await lookupIsbn(i);if(tok!==lkTok||tab!=='s'||scanSt!==5)return;
+ if(r.err){scanSt=6}else if(r.t){newB={...r,i,c:swatch(r.t)};scanSt=2}else{scanSt=4}draw()}
+
+/* ---------- screens ---------- */
+const fld='class="ri" style="width:100%;border-radius:14px;padding:12px" autocomplete="off"';
+function scan(){
+ if(scanSt===3){const n=newB||{};return `<button class="back" onclick="scanSt=${n.i?4:0};draw()">‹ Back</button><div class="top"><h1>${n.t?'Edit details':'Add by title'}</h1></div>${n.i?`<p style="color:var(--mut);font-size:13px;margin:-6px 0 6px">ISBN ${esc(n.i)}</p>`:''}<label class="lbl" for="mt" style="margin-top:0">Title</label><input id="mt" ${fld} maxlength="60" value="${esc(n.t||'')}"><label class="lbl" for="ma">Author <span style="font-weight:400;color:var(--mut)">(optional)</span></label><input id="ma" ${fld} maxlength="40" value="${esc(n.a||'')}" onkeydown="if(event.key==='Enter')addManual()"><button class="btn acc" onclick="addManual()">Add to my shelf</button>`}
+ if(scanSt===5)return `<div class="top"><h1>Add a book</h1></div><div class="card empty"><div class="spin" aria-hidden="true"></div><b class="serif" style="font-size:18px">Looking up ${esc(newB.i)}…</b><p>Checking Open Library and Google Books.</p></div>`;
+ if(scanSt===2){const dup=lib.some(x=>slug(x.t)===slug(newB.t));return `<div class="top"><h1>Found it</h1></div><div class="card item">${cv(newB)}<div><b>${esc(newB.t)}</b><small>${esc(newB.a||'Unknown author')}</small><small>ISBN ${esc(newB.i)} · via ${esc(newB.src)}</small></div></div>${dup?'<p class="tag" style="display:block;padding:10px 14px">You already have a copy of this on your shelf.</p>':''}<button class="btn acc" onclick="addB()">${dup?'Add another copy':'Add to my shelf'}</button><button class="btn ghost" onclick="scanSt=3;draw()">Not right? Edit details</button><button class="btn ghost" onclick="scanSt=0;draw()">Scan another</button>`}
+ if(scanSt===4||scanSt===6){const nf=scanSt===4;return `<div class="top"><h1>${nf?'Not in the catalog':'Can’t reach the catalog'}</h1></div><div class="card empty"><b class="serif" style="font-size:18px">ISBN ${esc(newB.i)}</b><p>${nf?'Neither Open Library nor Google Books has this edition yet. You can still add it by title.':'Check your connection and try again, or add the book by title.'}</p></div>${nf?'':`<button class="btn acc" onclick="gotIsbn('${esc(newB.i)}')">Try again</button>`}<button class="btn ${nf?'acc':'ghost'}" onclick="scanSt=3;draw()">Add by title</button><button class="btn ghost" onclick="scanSt=0;draw()">Scan another</button>`}
+ return `<div class="top"><h1>Add a book</h1></div>
+ <div class="view" id="vw"><video id="cam" playsinline muted autoplay></video><div class="bar"></div><p class="vmsg" id="vmsg">Starting camera…</p><div class="vtools" id="vt"></div></div>
+ <div class="two" style="align-items:center"><input id="isbn" class="ri" inputmode="numeric" aria-label="ISBN" placeholder="Or type the ISBN (978…)" maxlength="17" autocomplete="off" onkeydown="if(event.key==='Enter')isbnGo()"><button class="chip on" onclick="isbnGo()">Look up</button></div>
+ <label class="btn ghost" style="display:block;text-align:center;cursor:pointer">Take a photo of the barcode<input type="file" accept="image/*" capture="environment" hidden onchange="scanPhoto(this)"></label>
+ <button class="btn ghost" onclick="scanSt=3;newB=null;draw()">Add by title instead</button>`}
+function addManual(){const t=clean(($('mt')||{}).value,60),a=clean(($('ma')||{}).value,40);if(!t){toast('Enter a title first');return}
+ const o=newB||{};newB={...o,t,a,c:swatch(t),cu:(o.t&&o.t===t)?o.cu:''};addB()}
+function addB(){const id=Date.now()*10,b=newB,rec={id,t:b.t,a:b.a||'',c:b.c||swatch(b.t),on:1};if(b.cu&&COVER_OK.test(b.cu))rec.cu=b.cu;if(b.i)rec.i=b.i;
+ dbSet(`users/${me.id}/books/b${id}`,rec);rebuild();seg='mine';go('p');toast(`${b.t} added. Neighbors can now borrow it`)}
+document.addEventListener('visibilitychange',()=>{if(document.hidden)camStop();else if(me&&tab==='s'&&scanSt===0)camStart()});
 
 /* ---------- community: clubs + leaderboard ---------- */
 const msgs=cid=>Object.values((DB.clubmsgs||{})[cid]||{}).sort((a,b)=>a.ts-b.ts);
@@ -479,13 +620,15 @@ async function sync(force){if(pend)return;const w0=wver;let d;try{d=scrub(await 
  if(['d','a','p','u'].includes(tab)&&!document.querySelector('.scrim,.scrim2')&&!typing)draw();else tabs()}
 
 /* ---------- shell ---------- */
-const TABS=[['d','Discover'],['f','Feed'],['s','Add'],['u','Community'],['a','Activity'],['p','Me']];
-function tabs(){if(!me){$('tabs').innerHTML='';return}const b=badge();
- $('tabs').innerHTML=TABS.map(([k,n])=>k==='s'?`<button class="scan" onclick="go('s')"><span>${ic('s')}</span>${n}</button>`:`<button class="${tab===k||(tab==='detail'&&k==='d')||(tab==='post'&&k==='f')?'on':''}" onclick="go('${k}')">${ic(k)}${n}${k==='a'&&b?`<b class="dot">${b}</b>`:''}</button>`).join('')}
+const TABS=[['d','Discover'],['f','Feed'],['s','Add'],['u','Community'],['p','Me']];
+function tabs(){const bar=$('bar');if(!me){$('tabs').innerHTML='';bar.style.display='none';return}const b=badge();
+ bar.style.display=(tab==='u'&&curClub)?'none':'flex';
+ bar.innerHTML=`<span class="wm">ShelfShare</span><button class="bell ${tab==='a'?'on':''}" aria-label="Activity and notifications${b?', '+b+' new':''}" onclick="go('a')">${ic('a')}${b?`<b class="dot">${b}</b>`:''}</button>`;
+ $('tabs').innerHTML=TABS.map(([k,n])=>k==='s'?`<button class="scan" onclick="go('s')"><span>${ic('s')}</span>${n}</button>`:`<button class="${tab===k||(tab==='detail'&&k==='d')||(tab==='post'&&k==='f')?'on':''}" onclick="go('${k}')">${ic(k)}${n}</button>`).join('')}
 const VIEWS={d:discover,detail,f:feed,post:compose,s:scan,u:community,a:activity,p:profile};
 function draw(){const s=$('screen');s.className=(me&&tab==='u'&&curClub)?'flush':'';
- if(!me){s.innerHTML=onboard();$('tabs').innerHTML='';showLoc();detectLoc();return}
- s.innerHTML=VIEWS[tab]();tabs();if(tab==='u'&&curClub)afterChat()}
+ if(!me){camStop();s.innerHTML=onboard();$('tabs').innerHTML='';showLoc();detectLoc();return}
+ s.innerHTML=VIEWS[tab]();tabs();if(tab==='u'&&curClub)afterChat();if(tab==='s'&&scanSt===0)setTimeout(camStart,0);else camStop()}
 setInterval(()=>{if(!document.hidden)sync()},2500);addEventListener('storage',()=>sync());
 (async()=>{$('screen').innerHTML='<p style="color:var(--mut);margin-top:40%;text-align:center">Loading…</p>';await sync(true);let sv=null;try{sv=JSON.parse(ls.get('ss_me')||'null')}catch(e){}
  if(sv&&(DB.users||{})[sv.id]){me=sv;await afterLogin()}draw()})();
