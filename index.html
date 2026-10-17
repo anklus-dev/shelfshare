@@ -104,7 +104,7 @@ input[type=number]{width:80px;border:1px solid var(--line);border-radius:10px;pa
 </style></head><body>
 <div id="app"><main id="screen"></main><nav class="tabs" id="tabs"></nav></div>
 <script>
-const CFG={FIREBASE_URL:''}; // To go live, paste your Firebase Realtime Database URL between the quotes (see README.md)
+const CFG={FIREBASE_URL:'https://shelfshare-11e68-default-rtdb.firebaseio.com/'}; // To go live, paste your Firebase Realtime Database URL between the quotes (see README.md)
 const LIVE=!!CFG.FIREBASE_URL,BASE=CFG.FIREBASE_URL.replace(/\/$/,'');
 let DB={},me=null,last='',pend=0,DBok=false,seen=null,fakeLent={},mem={};
 const ls={get(k){try{return localStorage.getItem(k)}catch(e){return mem[k]||null}},set(k,v){try{localStorage.setItem(k,v)}catch(e){mem[k]=v}},del(k){try{localStorage.removeItem(k)}catch(e){delete mem[k]}}};
