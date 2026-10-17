@@ -149,15 +149,33 @@ select.ri{border-radius:12px;width:100%;margin-top:6px}
 </style></head><body>
 <div id="app"><header id="bar"></header><main id="screen"></main><nav class="tabs" id="tabs"></nav></div>
 <script>
-const CFG={FIREBASE_URL:'https://shelfshare-11e68-default-rtdb.firebaseio.com/'}; // Firebase Realtime Database URL (see README.md)
-const LIVE=!!CFG.FIREBASE_URL,BASE=CFG.FIREBASE_URL.replace(/\/$/,'');
-let DB={},me=null,last='',pend=0,wver=0,DBok=false,seen=null,mem={},LOC=null,locP=null,locSt='idle';
+const CFG={FIREBASE_URL:'https://shelfshare-11e68-default-rtdb.firebaseio.com/',API_KEY:'AIzaSyC1wRKt3VI819B8kdSJrRWaF7-FNd-LaYs'}; // Firebase Realtime Database URL + Web API key (see README.md)
+const BASE=CFG.FIREBASE_URL.replace(/\/$/,'');
+let DB={},me=null,AU=null,last='',pend=0,wver=0,DBok=false,seen=null,mem={},LOC=null,locP=null,locSt='idle';
 const ls={get(k){try{return localStorage.getItem(k)}catch(e){return mem[k]||null}},set(k,v){try{localStorage.setItem(k,v)}catch(e){mem[k]=v}},del(k){try{localStorage.removeItem(k)}catch(e){delete mem[k]}}};
 const IDK=new Set(['id','bookId','uid','from','to','lender','swapOf','tid']); // id-like fields end up inside inline handlers, so only safe characters survive
 const scrub=d=>JSON.parse(JSON.stringify(d||{}),(k,v)=>typeof v!=='string'?v:IDK.has(k)?v.replace(/[^\p{L}\p{N}_-]/gu,''):v.replace(/[<>"`\\]/g,''));
 const setIn=(o,p,v)=>{const a=p.split('/');let c=o;a.slice(0,-1).forEach(k=>c=c[k]=c[k]||{});if(v===null)delete c[a[a.length-1]];else c[a[a.length-1]]=v};
-async function load(){if(LIVE){const r=await fetch(BASE+'/ss.json');if(!r.ok)throw 0;return (await r.json())||{}}return JSON.parse(ls.get('ss_db')||'{}')||{}}
-async function save(p,v){pend++;try{if(LIVE){await fetch(`${BASE}/ss/${encodeURI(p)}.json`,{method:'PUT',body:JSON.stringify(v)})}else{const d=JSON.parse(ls.get('ss_db')||'{}')||{};setIn(d,p,v);ls.set('ss_db',JSON.stringify(d))}}catch(e){}pend--}
+/* ---------- accounts: Firebase Authentication (email + password) over its REST API ---------- */
+const AUTHAPI='https://identitytoolkit.googleapis.com/v1/accounts:',TOKAPI='https://securetoken.googleapis.com/v1/token';
+async function authCall(ep,body){let r,j;try{r=await fetch(`${AUTHAPI}${ep}?key=${encodeURIComponent(CFG.API_KEY)}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});j=await r.json().catch(()=>({}))}catch(e){const x=new Error('network');x.code='NETWORK';throw x}
+ if(!r.ok){const m=String((j.error&&j.error.message)||'ERROR'),x=new Error(m);x.code=m.split(/[ :]/)[0];throw x}return j}
+function setAuth(j){AU={uid:j.localId||j.user_id,email:j.email||(AU&&AU.email)||'',rt:j.refreshToken||j.refresh_token,idt:j.idToken||j.id_token,exp:Date.now()+(+(j.expiresIn||j.expires_in)||3600)*1000};
+ ls.set('ss_auth',JSON.stringify({uid:AU.uid,email:AU.email,rt:AU.rt}))}
+async function refreshTok(){if(!AU)throw new Error('noauth');let r,j;
+ try{r=await fetch(`${TOKAPI}?key=${encodeURIComponent(CFG.API_KEY)}`,{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:'grant_type=refresh_token&refresh_token='+encodeURIComponent(AU.rt)});j=await r.json().catch(()=>({}))}catch(e){throw new Error('network')}
+ if(!r.ok){const m=String((j.error&&j.error.message)||''),x=new Error(m||'refresh');x.dead=/TOKEN_EXPIRED|USER_NOT_FOUND|USER_DISABLED|INVALID_REFRESH_TOKEN|CREDENTIAL_MISMATCH/.test(m);throw x}
+ j.email=AU.email;setAuth(j)}
+let refP=null;
+async function tok(force){if(!AU)return null;
+ if(force||!AU.idt||AU.exp-Date.now()<120000){refP=refP||refreshTok().finally(()=>{refP=null});try{await refP}catch(e){if(e.dead){signOut('Please log in again.');return null}if(!AU||!AU.idt)throw e}}
+ return AU&&AU.idt}
+async function fb(method,url,body){let r=null;
+ for(let i=0;i<2;i++){const t=await tok(i===1);if(!t)throw new Error('noauth');r=await fetch(url+(url.includes('?')?'&':'?')+'auth='+encodeURIComponent(t),{method,body});if(r.status!==401)return r}
+ return r}
+async function load(){const r=await fb('GET',BASE+'/ss.json');if(!r.ok)throw new Error('http '+r.status);return (await r.json())||{}}
+async function save(p,v){pend++;let bad=0;try{const r=await fb('PUT',`${BASE}/ss/${encodeURI(p)}.json`,JSON.stringify(v));bad=!r.ok}catch(e){bad=1}pend--;
+ if(bad){wver++;setTimeout(()=>sync(true),60);toast('Couldn’t save that. Check your connection and try again.')}return !bad}
 function dbSet(p,v){wver++;setIn(DB,p,v);return save(p,v)}
 
 /* ---------- helpers ---------- */
@@ -234,7 +252,7 @@ function go(t,d){tab=t;det=d||null;if(t==='a')upd=0;if(t==='u')curClub=null;scan
 /* ---------- derived data ---------- */
 function rebuild(){
  const U=DB.users||{},R=Object.values(DB.requests||{}),meU=U[me.id]||{},ml=meU.loc,su=slug(meU.unit||'');
- COV={};Object.values(U).forEach(u=>Object.values(u.books||{}).forEach(b=>{if(b.cu)COV[slug(b.t)]=b.cu}));
+ COV={};Object.entries(DB.covers||{}).forEach(([k,u])=>{if(typeof u==='string')COV[k]=u});Object.values(U).forEach(u=>Object.values(u.books||{}).forEach(b=>{if(b.cu&&!COV[slug(b.t)])COV[slug(b.t)]=b.cu}));
  const lentIds=new Set(R.filter(r=>r.status==='approved').map(r=>r.bookId));
  lib=Object.values(meU.books||{}).sort((x,y)=>x.id-y.id).map(b=>{const r=R.find(r=>r.bookId===b.id&&r.status==='approved');return {...b,lent:r&&r.fromName,due:r&&daysLeft(r),rid:r&&r.id,read:isRead(b.t)}});
  want=Object.values(meU.want||{});
@@ -343,7 +361,7 @@ function profile(){
  const body=seg==='mine'?(lib.length?lib.map((b,i)=>`<div class="card item">${cv(b)}<div><b>${esc(b.t)}</b><small>${esc(b.a)}</small><span class="tag ${b.on?'':'off'}">${b.lent?'Lent to '+esc(b.lent):b.on?'Visible to neighbors':'Hidden'}</span><div><button class="chip ${b.read?'on':''}" style="margin-top:6px" onclick="readB(${i})">${b.read?'Read ✓':'Mark as read'}</button></div></div><button class="sw ${b.on?'on':''}" aria-label="Toggle availability for ${esc(b.t)}" onclick="togB(${i})"></button></div>`).join('')+`<p style="color:var(--mut);font-size:13px">Switch a book off to keep it on your shelf without lending it.</p>`:`<div class="card empty"><b class="serif" style="font-size:18px">Your shelf is empty</b><p>Scan a book to share it with neighbors.</p><button class="btn acc" onclick="go('s')">Add a book</button></div>`)
  :seg==='want'?`<form onsubmit="addWant();return false" class="two" style="align-items:center;margin-bottom:12px"><input class="ri" id="wi" aria-label="Add a book you want" maxlength="60" placeholder="Add a book you want to read"><button class="chip on" type="submit">Add</button></form>`+(want.length?want.map(w=>{const m=near.find(b=>slug(b.t)===slug(w));return `<div class="card item"><div style="flex:1"><b>${esc(w)}</b><small>${m?`${esc(m.o)} has it, ${m.b?'in your building':esc(m.d)}`:'No neighbors have it yet'}</small></div>${m?`<button class="chip on" onclick="go('detail',${m.id})">View</button>`:''}<button class="chip" aria-label="Remove ${esc(w)}" onclick="rmWant('${key(w)}')">Remove</button></div>`}).join(''):'<p style="color:var(--mut)">Nothing here yet. Add a book above, or mark one from Discover.</p>')
  :`<h3 style="margin-bottom:8px">From borrowers of your books</h3>${onMine.length?onMine.map(tcard).join(''):'<p style="color:var(--mut);margin-bottom:8px">When someone shares a thought on a book you lent, it shows up here.</p>'}<h3 style="margin:14px 0 8px">Your thoughts</h3>${mine.length?mine.map(tcard).join(''):'<p style="color:var(--mut)">Nothing yet. Share what you think as you read.</p>'}<button class="btn acc" onclick="go('post')">Share a thought</button>`;
- return `<div class="item" style="margin-bottom:6px"><div class="ava">${esc(initials(me.name))}</div><div style="flex:1"><h1 style="font-size:24px">${esc(me.name)}</h1><small>${esc(meU.unit||'Neighbor')}</small><small>${ml?esc(locLabel(ml)):'Location not set'}${ml&&ml.src==='gps'?' · precise':''}</small></div><button class="chip" onclick="signOut()">Switch</button></div>
+ return `<div class="item" style="margin-bottom:6px"><div class="ava">${esc(initials(me.name))}</div><div style="flex:1"><h1 style="font-size:24px">${esc(me.name)}</h1><small>${esc(meU.unit||'Neighbor')}</small><small>${esc((AU&&AU.email)||'')}</small><small>${ml?esc(locLabel(ml)):'Location not set'}${ml&&ml.src==='gps'?' · precise':''}</small></div><button class="chip" onclick="signOut('Logged out')">Log out</button></div>
  ${ml&&ml.src!=='gps'?`<button class="chip" style="margin:4px 0 0" onclick="preciseLoc()">${ic('pin')} Use precise location</button>`:''}
  <div class="stats"><div><b>${lib.length}</b><small>On shelf</small></div><div><b>${st.read}</b><small>Read</small></div><div><b>${st.lent}</b><small>Lent</small></div><div><b>${nbrs}</b><small>Neighbors</small></div></div>
  <div class="seg"><button class="${seg==='mine'?'on':''}" onclick="seg='mine';draw()">Shelf</button><button class="${seg==='want'?'on':''}" onclick="seg='want';draw()">Want to read</button><button class="${seg==='th'?'on':''}" onclick="seg='th';draw()">Thoughts</button></div>${body}`}
@@ -372,7 +390,7 @@ function activity(){
 /* ---------- add a book: live barcode scanner + book lookup ---------- */
 const SWATCH=['#8C4A3C','#5B4B3A','#7A8541','#6A4A5A','#B07A2A','#4E6B3E','#7A4B2A','#8A5A44'];
 const swatch=t=>SWATCH[[...String(t)].reduce((x,c)=>(x*31+c.charCodeAt(0))>>>0,7)%SWATCH.length];
-const COVER_OK=/^https:\/\/(covers\.openlibrary\.org|archive\.org|books\.google\.com|books\.googleusercontent\.com|[a-z0-9-]+\.us\.archive\.org)\/[^\s"'<>]*$/;
+const COVER_OK=/^(https:\/\/(covers\.openlibrary\.org|archive\.org|books\.google\.com|books\.googleusercontent\.com|[a-z0-9-]+\.us\.archive\.org)\/[^\s"'<>]*|data:image\/jpeg;base64,[A-Za-z0-9+\/=]{20,40000})$/;
 const coverUrl=b=>{const u=(b&&b.cu)||COV[slug(b&&b.t)];return u&&COVER_OK.test(u)?u:''};
 const cvImg=b=>{const u=coverUrl(b);return u?`<img class="ci" src="${esc(u)}" alt="" loading="lazy" referrerpolicy="no-referrer" onload="if(this.naturalWidth>40)this.parentNode.classList.add('img');else this.remove()" onerror="this.remove()">`:''};
 const clean=(s,n)=>String(s||'').replace(/[<>"`\\]/g,'').replace(/\s+/g,' ').trim().slice(0,n);
@@ -464,39 +482,73 @@ function fetchT(url,ms){const c=new AbortController(),t=setTimeout(()=>c.abort()
 function jsonp(url,ms){return new Promise((res,rej)=>{const cb='__ssjp'+Math.random().toString(36).slice(2),s=document.createElement('script');let done=0;
  const end=f=>{if(done)return;done=1;clearTimeout(t);delete window[cb];s.remove();f()};const t=setTimeout(()=>end(()=>rej(new Error('timeout'))),ms);
  window[cb]=d=>end(()=>res(d));s.onerror=()=>end(()=>rej(new Error('jsonp')));s.src=url+(url.includes('?')?'&':'?')+'callback='+cb;document.head.appendChild(s)})}
-async function olLookup(i){const u=`https://openlibrary.org/api/books?bibkeys=ISBN:${i}&format=json&jscmd=data`;let j;
- try{const r=await fetchT(u,7000);if(!r.ok)throw new Error('http '+r.status);j=await r.json()}catch(e){j=await jsonp(u,7000)}
- const d=j&&j['ISBN:'+i];if(!d||!d.title)return null;
+const isbn10of=i=>{if(!/^978\d{10}$/.test(i))return '';const b=i.slice(3,12);let t=0;[...b].forEach((c,k)=>t+=(+c)*(10-k));const r=(11-t%11)%11;return b+(r===10?'X':r)};
+const olCover=id=>id?`https://covers.openlibrary.org/b/id/${id}-M.jpg`:'';
+async function olApi(url){try{const r=await fetchT(url,7000);if(!r.ok)throw new Error('HTTP '+r.status);return await r.json()}catch(e){return await jsonp(url,7000)}}
+async function olData(i){const k10=isbn10of(i),keys='ISBN:'+i+(k10?',ISBN:'+k10:''),j=await olApi(`https://openlibrary.org/api/books?bibkeys=${keys}&format=json&jscmd=data`);
+ const d=j&&(j['ISBN:'+i]||(k10&&j['ISBN:'+k10]));if(!d||!d.title)return null;
  return {t:clean(d.title,60),a:clean((d.authors||[]).slice(0,2).map(x=>x.name).join(', '),40),cu:d.cover&&(d.cover.medium||d.cover.large||d.cover.small)||'',src:'Open Library'}}
-async function gbLookup(i){const r=await fetchT(`https://www.googleapis.com/books/v1/volumes?q=isbn:${i}&maxResults=1`,7000);if(!r.ok)throw new Error('http '+r.status);const j=await r.json(),v=j.items&&j.items[0]&&j.items[0].volumeInfo;
- if(!v||!v.title)return null;const im=v.imageLinks&&(v.imageLinks.thumbnail||v.imageLinks.smallThumbnail)||'';
+async function olSearch(i){const j=await olApi(`https://openlibrary.org/search.json?q=isbn:${i}&fields=title,author_name,cover_i&limit=3`),d=j&&j.docs&&(j.docs.find(x=>x.title&&x.cover_i)||j.docs.find(x=>x.title));
+ if(!d)return null;return {t:clean(d.title,60),a:clean((d.author_name||[]).slice(0,2).join(', '),40),cu:olCover(d.cover_i),src:'Open Library'}}
+async function gbTry(q,i,k10){const r=await fetchT(`https://www.googleapis.com/books/v1/volumes?q=${q}&maxResults=5&country=US`,7000);if(!r.ok)throw new Error('HTTP '+r.status);const j=await r.json();
+ const v=(j.items||[]).map(x=>x.volumeInfo).find(v=>v&&v.title&&(v.industryIdentifiers||[]).some(x=>x.identifier===i||x.identifier===k10));if(!v)return null;
+ const im=v.imageLinks&&(v.imageLinks.thumbnail||v.imageLinks.smallThumbnail)||'';
  return {t:clean(v.title,60),a:clean((v.authors||[]).slice(0,2).join(', '),40),cu:im.replace(/^http:/,'https:').replace('&edge=curl',''),src:'Google Books'}}
-async function lookupIsbn(i){const [o,g]=await Promise.allSettled([olLookup(i),gbLookup(i)]),ov=o.status==='fulfilled'?o.value:null,gv=g.status==='fulfilled'?g.value:null;
- if(!ov&&!gv)return o.status==='rejected'&&g.status==='rejected'?{err:1}:{};
- const b={...(ov||gv)};if(!b.cu&&gv&&gv.cu)b.cu=gv.cu;if(!b.a&&gv&&gv.a)b.a=gv.a;if(b.cu&&!COVER_OK.test(b.cu))b.cu='';return b}
+async function gbLookup(i){const k10=isbn10of(i);let e=null;
+ for(const q of ['isbn:'+i,k10?'isbn:'+k10:'',i]){if(!q)continue;try{const r=await gbTry(q,i,k10);if(r)return r}catch(x){e=x}}
+ if(e)throw e;return null}
+async function lookupIsbn(i){const names=['Open Library','Open Library search','Google Books'],rs=await Promise.allSettled([olData(i),olSearch(i),gbLookup(i)]);
+ const diag=rs.map((r,k)=>names[k]+': '+(r.status==='rejected'?'no answer':r.value?'found':'no record')).join(' · ');
+ const hits=rs.filter(r=>r.status==='fulfilled'&&r.value).map(r=>r.value);
+ if(!hits.length)return {diag,err:rs.some(r=>r.status==='rejected')};
+ const b={...hits[0]};for(const h of hits){if(!b.cu&&h.cu)b.cu=h.cu;if(!b.a&&h.a)b.a=h.a}
+ if(!b.cu)b.cu=`https://covers.openlibrary.org/b/isbn/${i}-M.jpg?default=false`;
+ if(!COVER_OK.test(b.cu))b.cu='';b.diag=diag;return b}
 let lkTok=0;
 async function gotIsbn(i,how){camStop();try{navigator.vibrate&&navigator.vibrate(60)}catch(e){}
  const tok=++lkTok;newB={i,how};scanSt=5;draw();
  const r=await lookupIsbn(i);if(tok!==lkTok||tab!=='s'||scanSt!==5)return;
- if(r.err){scanSt=6}else if(r.t){newB={...r,i,c:swatch(r.t)};scanSt=2}else{scanSt=4}draw()}
+ if(r.t){newB={...r,i,c:swatch(r.t)};scanSt=2}else{newB={i,diag:r.diag};scanSt=r.err?6:4}draw()}
 
 /* ---------- screens ---------- */
 const fld='class="ri" style="width:100%;border-radius:14px;padding:12px" autocomplete="off"';
 function scan(){
- if(scanSt===3){const n=newB||{};return `<button class="back" onclick="scanSt=${n.i?4:0};draw()">‹ Back</button><div class="top"><h1>${n.t?'Edit details':'Add by title'}</h1></div>${n.i?`<p style="color:var(--mut);font-size:13px;margin:-6px 0 6px">ISBN ${esc(n.i)}</p>`:''}<label class="lbl" for="mt" style="margin-top:0">Title</label><input id="mt" ${fld} maxlength="60" value="${esc(n.t||'')}"><label class="lbl" for="ma">Author <span style="font-weight:400;color:var(--mut)">(optional)</span></label><input id="ma" ${fld} maxlength="40" value="${esc(n.a||'')}" onkeydown="if(event.key==='Enter')addManual()"><button class="btn acc" onclick="addManual()">Add to my shelf</button>`}
+ if(scanSt===3){const n=newB||{},mine=/^data:/.test(n.cu||'');return `<button class="back" onclick="scanSt=${n.i?4:0};draw()">‹ Back</button><div class="top"><h1>${n.t&&n.src?'Edit details':'Add by title'}</h1></div>${n.i?`<p style="color:var(--mut);font-size:13px;margin:-6px 0 6px">ISBN ${esc(n.i)}</p>`:''}<label class="lbl" for="mt" style="margin-top:0">Title</label><input id="mt" ${fld} maxlength="60" value="${esc(n.t||'')}"><label class="lbl" for="ma">Author <span style="font-weight:400;color:var(--mut)">(optional)</span></label><input id="ma" ${fld} maxlength="40" value="${esc(n.a||'')}">
+ <label class="lbl">Cover photo</label><div class="item" style="gap:14px;align-items:center"><div style="width:84px;flex:none">${cv({t:n.t||'Your title',a:n.a||'',c:n.c||swatch(n.t||'x'),cu:n.cu||''})}</div><div style="flex:1"><label class="btn ghost" style="display:block;text-align:center;cursor:pointer;margin:0 0 8px">${mine?'Retake photo':'Take a photo of the cover'}<input type="file" accept="image/*" capture="environment" hidden onchange="coverPhoto(this)"></label>${mine?`<button class="btn ghost" style="margin:0" onclick="rmCoverPhoto()">Remove photo</button>`:`<small style="color:var(--mut)">${n.cu?'Using the catalog cover. A photo replaces it.':'Optional. Without one we use a generated cover.'}</small>`}</div></div>
+ <button class="btn acc" onclick="addManual()">Add to my shelf</button>`}
  if(scanSt===5)return `<div class="top"><h1>Add a book</h1></div><div class="card empty"><div class="spin" aria-hidden="true"></div><b class="serif" style="font-size:18px">Looking up ${esc(newB.i)}…</b><p>Checking Open Library and Google Books.</p></div>`;
  if(scanSt===2){const dup=lib.some(x=>slug(x.t)===slug(newB.t));return `<div class="top"><h1>Found it</h1></div><div class="card item">${cv(newB)}<div><b>${esc(newB.t)}</b><small>${esc(newB.a||'Unknown author')}</small><small>ISBN ${esc(newB.i)} · via ${esc(newB.src)}</small></div></div>${dup?'<p class="tag" style="display:block;padding:10px 14px">You already have a copy of this on your shelf.</p>':''}<button class="btn acc" onclick="addB()">${dup?'Add another copy':'Add to my shelf'}</button><button class="btn ghost" onclick="scanSt=3;draw()">Not right? Edit details</button><button class="btn ghost" onclick="scanSt=0;draw()">Scan another</button>`}
- if(scanSt===4||scanSt===6){const nf=scanSt===4;return `<div class="top"><h1>${nf?'Not in the catalog':'Can’t reach the catalog'}</h1></div><div class="card empty"><b class="serif" style="font-size:18px">ISBN ${esc(newB.i)}</b><p>${nf?'Neither Open Library nor Google Books has this edition yet. You can still add it by title.':'Check your connection and try again, or add the book by title.'}</p></div>${nf?'':`<button class="btn acc" onclick="gotIsbn('${esc(newB.i)}')">Try again</button>`}<button class="btn ${nf?'acc':'ghost'}" onclick="scanSt=3;draw()">Add by title</button><button class="btn ghost" onclick="scanSt=0;draw()">Scan another</button>`}
+ if(scanSt===4||scanSt===6){const nf=scanSt===4;return `<div class="top"><h1>${nf?'Not in the catalog':'Couldn’t confirm this book'}</h1></div><div class="card empty"><b class="serif" style="font-size:18px">ISBN ${esc(newB.i)}</b><p>${nf?'Open Library and Google Books don’t list this edition. It happens with newer or small-press printings. You can still add it by title.':'At least one catalog didn’t answer, so we can’t tell if it’s listed. Try again, or add it by title.'}</p><small style="color:var(--mut);display:block;margin-top:6px">${esc(newB.diag||'')}</small></div><button class="btn ${nf?'ghost':'acc'}" onclick="gotIsbn('${esc(newB.i)}')">Try again</button><button class="btn ${nf?'acc':'ghost'}" onclick="scanSt=3;draw()">Add by title</button><button class="btn ghost" onclick="scanSt=0;draw()">Scan another</button>`}
  return `<div class="top"><h1>Add a book</h1></div>
  <div class="view" id="vw"><video id="cam" playsinline muted autoplay></video><div class="bar"></div><p class="vmsg" id="vmsg">Starting camera…</p><div class="vtools" id="vt"></div></div>
  <div class="two" style="align-items:center"><input id="isbn" class="ri" inputmode="numeric" aria-label="ISBN" placeholder="Or type the ISBN (978…)" maxlength="17" autocomplete="off" onkeydown="if(event.key==='Enter')isbnGo()"><button class="chip on" onclick="isbnGo()">Look up</button></div>
  <label class="btn ghost" style="display:block;text-align:center;cursor:pointer">Take a photo of the barcode<input type="file" accept="image/*" capture="environment" hidden onchange="scanPhoto(this)"></label>
  <button class="btn ghost" onclick="scanSt=3;newB=null;draw()">Add by title instead</button>`}
-function addManual(){const t=clean(($('mt')||{}).value,60),a=clean(($('ma')||{}).value,40);if(!t){toast('Enter a title first');return}
- const o=newB||{};newB={...o,t,a,c:swatch(t),cu:(o.t&&o.t===t)?o.cu:''};addB()}
+function keepFields(){const o=newB||{};newB={...o,t:clean(($('mt')||{value:o.t||''}).value,60),a:clean(($('ma')||{value:o.a||''}).value,40)}}
+async function photoToCover(file){let bmp;try{bmp=await createImageBitmap(file,{imageOrientation:'from-image'})}catch(e){bmp=await createImageBitmap(file)}
+ const W=180,H=270,c=document.createElement('canvas');c.width=W;c.height=H;const x=c.getContext('2d'),k=Math.max(W/bmp.width,H/bmp.height),sw=W/k,sh=H/k;
+ x.drawImage(bmp,(bmp.width-sw)/2,(bmp.height-sh)/2,sw,sh,0,0,W,H);if(bmp.close)bmp.close();
+ for(const q of [.65,.5,.38]){const u=c.toDataURL('image/jpeg',q);if(u.length<24000||q===.38)return u}}
+async function coverPhoto(inp){const f=inp.files&&inp.files[0];inp.value='';if(!f)return;keepFields();
+ try{newB.cu=await photoToCover(f);draw();toast('Cover photo added')}catch(e){toast('Couldn’t read that photo. Try again.')}}
+function rmCoverPhoto(){keepFields();newB.cu='';draw()}
+function addManual(){keepFields();const o=newB||{},t=o.t,a=o.a;if(!t){toast('Enter a title first');return}
+ const cu=o.cu&&/^data:/.test(o.cu)||o.src?o.cu:'';newB={...o,t,a,c:swatch(t),cu};addB()}
 function addB(){const id=Date.now()*10,b=newB,rec={id,t:b.t,a:b.a||'',c:b.c||swatch(b.t),on:1};if(b.cu&&COVER_OK.test(b.cu))rec.cu=b.cu;if(b.i)rec.i=b.i;
  dbSet(`users/${me.id}/books/b${id}`,rec);rebuild();seg='mine';go('p');toast(`${b.t} added. Neighbors can now borrow it`)}
 document.addEventListener('visibilitychange',()=>{if(document.hidden)camStop();else if(me&&tab==='s'&&scanSt===0)camStart()});
+
+/* stock classics get their real cover automatically: the first device that sees one looks it up and shares it through the database */
+const covTried=new Set();let covBusy=0;
+async function findCover(b){let c=[];
+ try{const j=await olApi(`https://openlibrary.org/search.json?title=${encodeURIComponent(b.t)}&author=${encodeURIComponent(b.a||'')}&fields=title,cover_i&limit=5`);const d=(j.docs||[]).find(x=>x.cover_i);if(d)return olCover(d.cover_i)}catch(e){}
+ try{const r=await fetchT(`https://www.googleapis.com/books/v1/volumes?q=intitle:${encodeURIComponent(b.t)}+inauthor:${encodeURIComponent(b.a||'')}&maxResults=3&country=US`,7000),j=await r.json();
+  const v=(j.items||[]).map(x=>x.volumeInfo).find(v=>v&&v.imageLinks&&v.imageLinks.thumbnail);if(v)return v.imageLinks.thumbnail.replace(/^http:/,'https:').replace('&edge=curl','')}catch(e){}
+ return ''}
+async function resolveCovers(){if(covBusy||!me||document.hidden)return;
+ const todo=POOL.filter(b=>!COV[key(b.t)]&&!covTried.has(key(b.t)));if(!todo.length)return;covBusy=1;
+ try{for(const b of todo){covTried.add(key(b.t));const u=await findCover(b);if(u&&COVER_OK.test(u)){COV[key(b.t)]=u;dbSet('covers/'+key(b.t),u);if(tab!=='s'&&!document.querySelector('.scrim,.scrim2')&&!(document.activeElement&&/INPUT|TEXTAREA/.test(document.activeElement.tagName)))draw()}await sleep(1100)}}
+ finally{covBusy=0}}
 
 /* ---------- community: clubs + leaderboard ---------- */
 const msgs=cid=>Object.values((DB.clubmsgs||{})[cid]||{}).sort((a,b)=>a.ts-b.ts);
@@ -584,37 +636,63 @@ function pickPreset(i){LOC={...PRESETS[+i],src:'manual'};locSt='ok';if(!me)showL
 function preciseLoc(){const e=$('locline');if(e)e.innerHTML='Waiting for your browser’s permission…';
  gpsLoc().then(l=>{LOC=l;locSt='ok';if(me){dbSet(`users/${me.id}/loc`,l);rebuild();draw();toast('Location updated')}else showLoc()})
  .catch(()=>{if(me)toast('Couldn’t get precise location. Check your browser’s permission.');else showLoc()})}
-function onboard(){return `<div style="min-height:100%;display:flex;flex-direction:column;justify-content:center"><h1 style="font-size:38px;text-align:center">ShelfShare</h1><p class="tag-l" style="font-size:15px;text-align:center;margin-bottom:18px">One Shared Shelf</p>
- <div class="pair big" style="justify-content:center;margin-bottom:18px">${POOL.slice(0,3).map(b=>cv(b)).join('')}</div>
- <label class="lbl" for="un" style="margin-top:0">What should neighbors call you?</label><input id="un" class="ri" style="width:100%;border-radius:14px;padding:12px" maxlength="20" placeholder="e.g. Alex" autocomplete="off" onkeydown="if(event.key==='Enter')signUp()">
- <label class="lbl" for="ut">Your building or neighborhood <span style="font-weight:400;color:var(--mut)">(optional)</span></label><input id="ut" class="ri" style="width:100%;border-radius:14px;padding:12px" maxlength="30" placeholder="e.g. Maple Court Apartments" autocomplete="off" onkeydown="if(event.key==='Enter')signUp()">
- <p id="locline" class="loc"></p>
- <button class="btn acc" onclick="signUp()">Create account</button>
- <p style="color:var(--mut);font-size:13px;margin-top:12px;text-align:center">We’ll put three classics on your shelf so neighbors have something to borrow right away. Already signed up? Enter the same name to log back in.</p>
- <p class="tag" style="margin:10px auto 0;text-align:center">${LIVE?'Live: everyone on this site shares one neighborhood':'Local mode: accounts live in this browser only'}</p>
- <p class="loc" style="font-size:12px">We use your connection to find your approximate area. Neighbors only see roughly where you are (rounded to under a mile), never your address.</p></div>`}
-async function afterLogin(){ls.set('ss_me',JSON.stringify(me));rebuild();
+let amode='up',abusy=0,aemail='';
+const AERR={EMAIL_EXISTS:'That email already has an account. Try logging in instead.',INVALID_LOGIN_CREDENTIALS:'Wrong email or password.',INVALID_PASSWORD:'Wrong email or password.',EMAIL_NOT_FOUND:'Wrong email or password.',WEAK_PASSWORD:'Use at least 6 characters for your password.',INVALID_EMAIL:'That doesn’t look like a valid email address.',MISSING_PASSWORD:'Enter your password.',MISSING_EMAIL:'Enter your email.',TOO_MANY_ATTEMPTS_TRY_LATER:'Too many attempts. Wait a few minutes and try again.',USER_DISABLED:'This account has been disabled.',OPERATION_NOT_ALLOWED:'Email sign-in isn’t turned on in Firebase yet.',NETWORK:'Can’t reach the server. Check your connection.',API_KEY_INVALID:'Setup problem: the Firebase API key is wrong.',CONFIGURATION_NOT_FOUND:'Setup problem: turn on Authentication in Firebase.'};
+const aerr=m=>{const e=$('aerr');if(e)e.textContent=m||''};
+const aMsg=e=>CFG.API_KEY.startsWith('__')?'Setup incomplete: add the Firebase Web API key (see README).':(AERR[e&&e.code]||'Something went wrong. Please try again.');
+function setMode(m){const e=$('ue');if(e)aemail=e.value;amode=m;draw()}
+function abusyOn(on){abusy=on;const b=$('abtn');if(b){b.disabled=!!on;b.style.opacity=on?.6:1}}
+function onboard(){const up=amode==='up',rs=amode==='reset',f='class="ri" style="width:100%;border-radius:14px;padding:12px"';
+ return `<div style="min-height:100%;display:flex;flex-direction:column;justify-content:center"><h1 style="font-size:38px;text-align:center">ShelfShare</h1><p class="tag-l" style="font-size:15px;text-align:center;margin-bottom:18px">One Shared Shelf</p>
+ <div class="pair big" style="justify-content:center;margin-bottom:14px">${POOL.slice(0,3).map(b=>cv(b)).join('')}</div>
+ <div class="seg" style="margin-bottom:6px"><button class="${up?'on':''}" onclick="setMode('up')">Create account</button><button class="${!up?'on':''}" onclick="setMode('in')">Log in</button></div>
+ <form onsubmit="event.preventDefault();authGo()" novalidate>
+ ${up?`<label class="lbl" for="un" style="margin-top:6px">What should neighbors call you?</label><input id="un" ${f} maxlength="20" placeholder="e.g. Alex" autocomplete="nickname">`:''}
+ <label class="lbl" for="ue" style="margin-top:${up?'':'6px'}">Email</label><input id="ue" type="email" inputmode="email" ${f} placeholder="you@example.com" autocomplete="email" autocapitalize="none" value="${esc(aemail)}">
+ ${rs?'':`<label class="lbl" for="up">Password${up?' <span style="font-weight:400;color:var(--mut)">(at least 6 characters)</span>':''}</label><input id="up" type="password" ${f} autocomplete="${up?'new-password':'current-password'}"><label style="display:flex;gap:6px;align-items:center;font-size:13px;color:var(--mut);margin-top:6px"><input type="checkbox" onchange="$('up').type=this.checked?'text':'password'"> Show password</label>`}
+ ${up?`<label class="lbl" for="ut">Your building or neighborhood <span style="font-weight:400;color:var(--mut)">(optional)</span></label><input id="ut" ${f} maxlength="30" placeholder="e.g. Maple Court Apartments" autocomplete="off"><p id="locline" class="loc"></p>`:''}
+ <p id="aerr" role="alert" style="color:#a3392b;font-size:13px;min-height:18px;margin:8px 0 0"></p>
+ <button id="abtn" class="btn acc" type="submit">${up?'Create account':rs?'Send reset link':'Log in'}</button></form>
+ ${amode==='in'?`<button class="back" style="margin:6px auto 0;display:block" onclick="setMode('reset')">Forgot password?</button>`:''}${rs?`<button class="back" style="margin:6px auto 0;display:block" onclick="setMode('in')">‹ Back to log in</button>`:''}
+ ${up?`<p style="color:var(--mut);font-size:13px;margin-top:10px;text-align:center">We’ll put three classics on your shelf so neighbors have something to borrow right away.</p><p class="loc" style="font-size:12px">We use your connection to find your approximate area. Neighbors only see roughly where you are (rounded to under a mile), never your address or email.</p>`:''}</div>`}
+async function authGo(){if(abusy)return;if(amode==='up')return signUp();if(amode==='reset')return resetPw();return logIn()}
+const cleanName=s=>String(s||'').replace(/[^\p{L}\p{N} .'’-]/gu,'').trim();
+const emailVal=()=>(($('ue')||{}).value||'').trim().toLowerCase(),pwVal=()=>($('up')||{}).value||'';
+async function resetPw(){const em=emailVal();if(!em)return aerr('Enter your email first.');abusyOn(1);aerr('');
+ try{await authCall('sendOobCode',{requestType:'PASSWORD_RESET',email:em});const e=$('aerr');if(e){e.style.color='var(--pine,#4E5B3A)';e.textContent='If that email has an account, a reset link is on its way. Check spam too.'}}
+ catch(e){aerr(e.code==='EMAIL_NOT_FOUND'?'If that email has an account, a reset link is on its way. Check spam too.':aMsg(e))}abusyOn(0)}
+async function logIn(){const em=emailVal(),pw=pwVal();if(!em)return aerr('Enter your email.');if(!pw)return aerr('Enter your password.');abusyOn(1);aerr('');
+ try{setAuth(await authCall('signInWithPassword',{email:em,password:pw,returnSecureToken:true}));await enter(false)}
+ catch(e){if(AU&&!me){AU=null;ls.del('ss_auth')}aerr(e.enterMsg||aMsg(e))}abusyOn(0)}
+async function signUp(){const name=cleanName(($('un')||{}).value).slice(0,20),unit=cleanName(($('ut')||{}).value).slice(0,30),em=emailVal(),pw=pwVal();
+ if(!name)return aerr('Enter a name neighbors will see.');if(!em)return aerr('Enter your email.');if(pw.length<6)return aerr('Use at least 6 characters for your password.');abusyOn(1);aerr('');
+ try{setAuth(await authCall('signUp',{email:em,password:pw,returnSecureToken:true}));ls.set('ss_pn_'+AU.uid,JSON.stringify({name,unit}));await enter(true)}
+ catch(e){if(AU&&!me){AU=null;ls.del('ss_auth')}aerr(e.enterMsg||aMsg(e))}abusyOn(0)}
+/* the profile (and starter books) live in the database under the account's uid */
+async function makeProfile(name,unit){const U=DB.users||{},loc=await Promise.race([detectLoc(),new Promise(r=>setTimeout(()=>r(LOC||{...PRESETS[0],src:'default'}),6000))]);
+ const held={};Object.values(U).forEach(u=>Object.values(u.books||{}).forEach(b=>held[b.t]=(held[b.t]||0)+1));
+ const pick=POOL.map((b,i)=>[b,i]).sort((x,y)=>(held[x[0].t]||0)-(held[y[0].t]||0)||x[1]-y[1]).slice(0,3).map(x=>x[0]),t0=Date.now()*10,books={};
+ pick.forEach((b,i)=>books['b'+(t0+i)]={id:t0+i,t:b.t,a:b.a,c:b.c,on:1});
+ const rec={name,unit,joined:Date.now(),loc:{lat:loc.lat,lon:loc.lon,city:loc.city||'',region:loc.region||'',cc:loc.cc||'',src:loc.src||'ip'},books};
+ if(!(await dbSet('users/'+AU.uid,rec)))throw Object.assign(new Error('profile'),{enterMsg:'Your account was created but we couldn’t save your profile. Log in again to retry.'});return rec}
+async function enter(fresh,silent){await sync(true);
+ if(!DBok){const x=new Error('db');x.enterMsg='Signed in, but couldn’t load the neighborhood. Check your connection and try again.';throw x}
+ let u=(DB.users||{})[AU.uid],created=false;
+ if(!u){let pn={};try{pn=JSON.parse(ls.get('ss_pn_'+AU.uid)||'{}')}catch(e){}
+  const nm=cleanName(pn.name||(AU.email||'').split('@')[0].replace(/[^\p{L}\p{N}]/gu,' ')).slice(0,20)||'Neighbor';u=await makeProfile(nm,cleanName(pn.unit||'').slice(0,30));created=true}
+ me={id:AU.uid,name:u.name,unit:u.unit||''};tab='d';curClub=null;await afterLogin();draw();
+ if(!silent)toast(fresh||created?`Welcome, ${me.name}. Three books are now on your shelf`:`Welcome back, ${me.name}`)}
+async function afterLogin(){rebuild();
  if(!myLoc()){const l=LOC||await detectLoc();dbSet(`users/${me.id}/loc`,l)}
  rebuild();ensureClubs();
  let ts=[];try{ts=JSON.parse(ls.get('ss_ts_'+me.id)||'[]')}catch(e){}tseen=new Set(ts);tnote=new Set(tItems().map(i=>i.key));seen=null;upd=0;notify()}
-async function signUp(){await sync(true);if(!DBok){toast('Can’t reach the server. Check your connection.');return}
- const cl=s=>s.replace(/[^\p{L}\p{N} .'’-]/gu,'').trim().slice(0,30),name=cl($('un').value).slice(0,20),unit=cl($('ut').value);if(!name){toast('Enter a name first');return}
- let id=slug(name)||'neighbor';if(/^\d+$/.test(id))id='u-'+id;const U=DB.users||{};let fresh=false;
- if(U[id])me={id,name:U[id].name,unit:U[id].unit};
- else{fresh=true;
-  const loc=await Promise.race([detectLoc(),new Promise(r=>setTimeout(()=>r(LOC||{...PRESETS[0],src:'default'}),6000))]);
-  const held={};Object.values(U).forEach(u=>Object.values(u.books||{}).forEach(b=>held[b.t]=(held[b.t]||0)+1));
-  const pick=POOL.map((b,i)=>[b,i]).sort((x,y)=>(held[x[0].t]||0)-(held[y[0].t]||0)||x[1]-y[1]).slice(0,3).map(x=>x[0]),t0=Date.now()*10,books={};
-  pick.forEach((b,i)=>books['b'+(t0+i)]={id:t0+i,t:b.t,a:b.a,c:b.c,on:1});
-  await dbSet('users/'+id,{name,unit,joined:Date.now(),loc:{lat:loc.lat,lon:loc.lon,city:loc.city||'',region:loc.region||'',cc:loc.cc||'',src:loc.src||'ip'},books});me={id,name,unit}}
- tab='d';curClub=null;await afterLogin();draw();toast(fresh?`Welcome, ${name}. Three books are now on your shelf`:`Welcome back, ${name}`)}
-function signOut(auto){ls.del('ss_me');me=null;seen=null;tseen=null;tnote=null;tab='d';asec='share';csec='clubs';curClub=null;ropen=null;upd=0;draw();if(auto)toast('Account not found. Please sign up again.')}
+function signOut(msg){ls.del('ss_auth');ls.del('ss_me');AU=null;me=null;DB={};last='';DBok=false;seen=null;tseen=null;tnote=null;tab='d';asec='share';csec='clubs';curClub=null;ropen=null;upd=0;amode='in';draw();if(typeof msg==='string')toast(msg)}
 
 /* ---------- sync ---------- */
-async function sync(force){if(pend)return;const w0=wver;let d;try{d=scrub(await load());DBok=true}catch(e){return}
+async function sync(force){if(pend||!AU)return;const w0=wver;let d;try{d=scrub(await load());DBok=true}catch(e){return}
  if(pend||wver!==w0)return;
- const j=JSON.stringify(d);if(j===last&&!force)return;last=j;DB=d;if(!me)return;if(!(DB.users||{})[me.id]){signOut(1);return}
- rebuild();notify();
+ const j=JSON.stringify(d);if(j===last&&!force)return;last=j;DB=d;if(!me)return;if(!(DB.users||{})[me.id]){signOut('Your profile was reset. Please log in again.');return}
+ rebuild();notify();resolveCovers();
  const ae=document.activeElement,typing=ae&&/INPUT|TEXTAREA|SELECT/.test(ae.tagName);
  if(tab==='u'&&curClub){drawMsgs();tabs();return}
  if(['d','a','p','u'].includes(tab)&&!document.querySelector('.scrim,.scrim2')&&!typing)draw();else tabs()}
@@ -630,7 +708,10 @@ function draw(){const s=$('screen');s.className=(me&&tab==='u'&&curClub)?'flush'
  if(!me){camStop();s.innerHTML=onboard();$('tabs').innerHTML='';showLoc();detectLoc();return}
  s.innerHTML=VIEWS[tab]();tabs();if(tab==='u'&&curClub)afterChat();if(tab==='s'&&scanSt===0)setTimeout(camStart,0);else camStop()}
 setInterval(()=>{if(!document.hidden)sync()},2500);addEventListener('storage',()=>sync());
-(async()=>{$('screen').innerHTML='<p style="color:var(--mut);margin-top:40%;text-align:center">Loading…</p>';await sync(true);let sv=null;try{sv=JSON.parse(ls.get('ss_me')||'null')}catch(e){}
- if(sv&&(DB.users||{})[sv.id]){me=sv;await afterLogin()}draw()})();
+(async()=>{$('screen').innerHTML='<p style="color:var(--mut);margin-top:40%;text-align:center">Loading…</p>';let sv=null;try{sv=JSON.parse(ls.get('ss_auth')||'null')}catch(e){}
+ if(sv&&sv.rt&&sv.uid){AU={uid:sv.uid,email:sv.email||'',rt:sv.rt,idt:'',exp:0};
+  for(let i=0;i<5&&AU&&!me;i++){try{await enter(false,true)}catch(e){if(!AU)break;if(e.enterMsg&&/profile/.test(e.enterMsg))break;await sleep(2000)}}
+  if(AU&&!me){AU=null;amode='in'}}
+ draw()})();
 
 </script></body></html>

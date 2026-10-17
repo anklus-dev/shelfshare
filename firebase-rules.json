@@ -1,0 +1,96 @@
+{
+  "rules": {
+    ".read": false,
+    ".write": false,
+    "ss": {
+      ".read": "auth!=null",
+      "users": {
+        "$uid": {
+          ".write": "auth!=null&&auth.uid===$uid",
+          "name": {
+            ".validate": "newData.isString()&&newData.val().length>0&&newData.val().length<=20"
+          },
+          "unit": {
+            ".validate": "newData.isString()&&newData.val().length<=30"
+          },
+          "books": {
+            "$bid": {
+              "t": {
+                ".validate": "newData.isString()&&newData.val().length>0&&newData.val().length<=60"
+              },
+              "a": {
+                ".validate": "newData.isString()&&newData.val().length<=40"
+              },
+              "cu": {
+                ".validate": "newData.isString()&&newData.val().length<=40000&&newData.val().matches(/^(https|data):.*/)"
+              }
+            }
+          }
+        }
+      },
+      "requests": {
+        "$rid": {
+          ".write": "auth!=null&&(data.exists()?(data.child('from').val()===auth.uid||data.child('to').val()===auth.uid):newData.child('from').val()===auth.uid)",
+          ".validate": "newData.hasChildren(['from','to','bookId','status'])&&newData.child('from').val()!==newData.child('to').val()&&(data.exists()||newData.child('status').val()==='pending'||(newData.child('status').val()==='approved'&&newData.child('swapOf').exists()&&root.child('ss/requests').child(newData.child('swapOf').val()).child('to').val()===auth.uid))",
+          "from": {
+            ".validate": "!data.exists()||newData.val()===data.val()"
+          },
+          "to": {
+            ".validate": "!data.exists()||newData.val()===data.val()"
+          },
+          "bookId": {
+            ".validate": "!data.exists()||newData.val()===data.val()"
+          },
+          "status": {
+            ".validate": "newData.isString()&&(!data.exists()||newData.val()===data.val()||root.child('ss/requests').child($rid).child('to').val()===auth.uid)"
+          },
+          "ext": {
+            ".validate": "newData.isNumber()&&newData.val()<=70"
+          }
+        }
+      },
+      "thoughts": {
+        "$tid": {
+          ".write": "auth!=null&&(data.exists()?data.child('uid').val()===auth.uid:newData.child('uid').val()===auth.uid)",
+          ".validate": "newData.hasChildren(['uid','txt'])&&newData.child('who').val()===root.child('ss/users').child(auth.uid).child('name').val()&&newData.child('txt').val().length<=400",
+          "likes": {
+            "$u": {
+              ".write": "auth!=null&&auth.uid===$u"
+            }
+          },
+          "replies": {
+            "$r": {
+              ".write": "auth!=null&&(data.exists()?data.child('uid').val()===auth.uid:newData.child('uid').val()===auth.uid)",
+              ".validate": "newData.hasChildren(['uid','txt'])&&newData.child('who').val()===root.child('ss/users').child(auth.uid).child('name').val()&&newData.child('txt').val().length<=500"
+            }
+          }
+        }
+      },
+      "clubs": {
+        "$cid": {
+          ".write": "auth!=null&&!data.exists()",
+          ".validate": "newData.hasChildren(['name'])&&newData.child('name').val().length<=60",
+          "members": {
+            "$u": {
+              ".write": "auth!=null&&auth.uid===$u"
+            }
+          }
+        }
+      },
+      "clubmsgs": {
+        "$cid": {
+          "$mid": {
+            ".write": "auth!=null&&!data.exists()&&(newData.child('uid').val()===auth.uid||(newData.child('uid').val()==='sys'&&$mid==='m1'))",
+            ".validate": "newData.hasChildren(['uid','txt'])&&newData.child('txt').val().length<=300&&(newData.child('uid').val()==='sys'||newData.child('who').val()===root.child('ss/users').child(auth.uid).child('name').val())"
+          }
+        }
+      },
+      "covers": {
+        "$k": {
+          ".write": "auth!=null&&!data.exists()",
+          ".validate": "newData.isString()&&newData.val().length<=300&&newData.val().matches(/^https:.*/)"
+        }
+      }
+    }
+  }
+}

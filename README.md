@@ -24,7 +24,9 @@ A neighborhood book-lending app demo (HackATL). One static page, no build step. 
 ## Camera scanning
 - **Add** opens the camera and reads the ISBN barcode on the back cover (hold it steady, fill the frame; the light button helps in dim rooms). Two matching reads are required and the ISBN checksum is verified, so a misread is very unlikely.
 - Decoder: the browser's built-in BarcodeDetector where it works (Chrome/Android), otherwise a bundled ZXing WebAssembly decoder in `vendor/` (iPhone Safari, Firefox, desktop). No external CDN. Keep the `vendor/` folder next to `index.html`.
-- Lookup: **Open Library** first (free, open, no key), then **Google Books** if Open Library has no record or no cover. Covers are saved with the book and show everywhere it appears.
+- Lookup: **Open Library** (book data, ISBN-10/13, and its search index) and **Google Books** are asked at the same time. If a book isn't found, the screen shows which catalog said what, and separates "not listed" from "a catalog didn't answer". Covers are saved with the book and show everywhere it appears.
+- Adding by title: you can take a photo of the cover, which replaces the generated one (stored as a small ~10 KB image in the database).
+- Stock classics (Frankenstein, etc.) get real covers automatically: the first device to open the app looks each one up on Open Library and shares it through the database (`covers/` node), so there are no repeat lookups.
 - Backups if the camera can't be used (blocked permission, in-app browser): **take a photo** of the barcode, **type the ISBN** (10 or 13 digits), or **add by title**.
 - The camera needs https, which GitHub Pages provides. The browser will ask for camera permission the first time.
 - Open Library is community-maintained, so a brand-new or obscure edition can be missing. That is why Google Books is the backup and manual entry always works.
@@ -35,10 +37,16 @@ A neighborhood book-lending app demo (HackATL). One static page, no build step. 
 - IP location is approximate: it can be tens of miles off, and venue or school Wi-Fi often reports the network's location. Everyone on the same Wi-Fi will appear "nearby". For the demo, that's a feature.
 - Geolocation only works on https (GitHub Pages is https).
 
+## Accounts and security
+- Sign-up and log-in use **Firebase Authentication** (email + password). The Web API key is set in `index.html` (`CFG.API_KEY`); it is a public identifier, not a secret.
+- Security rules live in `firebase-rules.json`. Paste them in the Firebase console: Realtime Database, Rules tab, replace everything, Publish. After that only signed-in users can read, you can only change your own profile and books, only the lender can approve a request, and nobody can post as someone else.
+- Accounts are identified by Firebase user IDs. If you upgrade from the older name-only version, delete the `ss` node once (Data tab) so old test data goes away.
+
 ## Resetting and limits
 
 - **Reset between demos:** delete the `ss` node in Firebase (Data tab).
-- The database rules are fully open and there are no passwords. Fine for a hackathon; don't enter real personal information.
+- **Passwords can't be recovered by us.** Use the Forgot password link on the log-in screen (Firebase sends the email). Emails and passwords live in Firebase Authentication, never in the shared database.
+- Firebase limits how many accounts one internet connection can create per hour. On shared venue wifi, create a couple of demo accounts ahead of time.
 - The app polls the database every ~2.5 seconds (only while the tab is visible). Chat and requests arrive with that small delay.
 
 ## Demo script (two phones)
