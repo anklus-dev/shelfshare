@@ -48,6 +48,9 @@
                 ".validate": "false"
               }
             }
+          },
+          "trialStart": {
+            ".validate": "newData.isNumber()"
           }
         }
       },

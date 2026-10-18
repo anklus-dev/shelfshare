@@ -68,3 +68,15 @@ A neighborhood book-lending app demo (HackATL). One static page, no build step. 
 - **Progress tab** (Me, then Progress): total pages, books finished, current and longest streak, days read, average pages per day, pages this week, most-read book, 11 badges and 9 levels (New Reader up to Grand Librarian).
 - **Leaderboard** now has Streak and Pages boards alongside Read and Lent.
 - **Security rules changed**: re-paste `firebase-rules.json` into Realtime Database, Rules, and Publish. Without this, logging pages will fail to save. Data is stored at `users/<uid>/rl/<YYYY-MM-DD>` as `{p: pages, t: title}`.
+
+## What's new in v11
+
+- **Shelf is a 3-per-row grid** of covers with a search box (matches title or author). Tap a cover to open a panel with "Mark as read" and "Share/hide from neighbors". Read books get a green check; lent books get a "Lent" tag; hidden books are dimmed.
+- **Referral line** now reads: "Friends who join with it get 25% off their first month free, and you get 25% off your next!" The sign-up field label says "25% off your first month" to match.
+- No security-rule changes since v10.
+
+## What's new in v12
+
+- **2 week free trial** on the sign-up plan page: a "Start your 2 week free trial" button under the main membership button. It works like the skip button (no card, nothing charged) but stays in the story. The Me tab then shows "Free trial · N days left" with an Upgrade button.
+- Referral share text and the "Referred by" line now say 25% off, matching the account page.
+- **Security rules changed again**: re-paste `firebase-rules.json` (adds `trialStart`) and Publish.
