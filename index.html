@@ -301,13 +301,13 @@ const asked=b=>Object.values(DB.requests||{}).some(r=>r.from===me.id&&r.bookId==
 /* ---------- discover ---------- */
 function popup(){return `<div class="scrim" onclick="pop=0;draw()"><div class="sheet" onclick="event.stopPropagation()"><b class="serif" style="font-size:18px">Search range</b><p style="color:var(--mut);font-size:13px;margin-top:2px">Show books from neighbors within this distance.</p><div class="row" style="margin:12px 0 4px">${[1,10,30,50].map(n=>`<button class="chip ${rng===n?'on':''}" onclick="rng=${n};draw()">${n} mi</button>`).join('')}</div><button class="btn acc" onclick="pop=0;draw()">Show ${near.filter(b=>b.mi<=rng).length} books</button></div></div>`}
 function discover(){
- const l=near.filter(b=>b.mi<=rng&&(filt==='all'||(filt==='b'&&b.b)||(filt==='n'&&!b.b))),ml=myLoc();
+ const ml=myLoc();
  let m=null;for(const b of near){if(b.mi>rng)continue;const mine=swapFor(b);if(mine){m={b,mine};break}}
  return `<div class="top"><div><h1>Discover</h1><div class="tag-l">One Shared Shelf${ml&&ml.city?' · Near '+esc(ml.city):''}</div></div><button class="chip" onclick="pop=1;draw()" aria-label="Change search range">Within ${rng} mi ▾</button></div>${pop?popup():''}
  ${m?`<button class="match" onclick="go('detail',${m.b.id})"><div class="pair">${cv(m.b)}${cv(m.mine)}</div><div><b>Swap match with ${esc(m.b.o)}</b>${esc(m.b.o)} has ${esc(m.b.t)}, which you want. You have ${esc(m.mine.t)}, which ${esc(m.b.o)} wants.</div></button>`:''}
  <div class="row">${[['all','All nearby'],['b','My building'],['n','Outside my building']].map(([k,n])=>`<button class="chip ${filt===k?'on':''}" onclick="filt='${k}';draw()">${n}</button>`).join('')}</div>
- ${l.length?`<div class="grid">${l.map(b=>`<button class="bk" onclick="go('detail',${b.id})">${cv(b)}<p>${esc(b.t)}</p><small>${esc(b.o)} · ${esc(b.w)}</small><small>${b.b?'In your building':esc(b.d)}</small></button>`).join('')}</div>`
- :`<div class="card empty"><b class="serif" style="font-size:18px">No books within ${rng} mi yet</b><p>${near.length?'Widen your range to see books from farther away.':'You’re the first one here. Neighbors who join will show up automatically.'}</p>${near.length?'<button class="btn acc" onclick="pop=1;draw()">Change range</button>':''}</div>`}`}
+ <form class="shs" onsubmit="document.activeElement.blur();return false"><input class="ri" id="dq" type="search" aria-label="Search books nearby" placeholder="Search title, author or neighbor" value="${esc(dq)}" oninput="dSearch(this.value)" autocomplete="off"><button class="chip on" type="submit" aria-label="Search"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg></button></form>
+ <div id="dgrid">${discGrid()}</div>`}
 function detail(){
  const b=near.find(x=>x.id===det);
  if(!b)return `<button class="back" onclick="go('d')">‹ Back to discover</button><p style="color:var(--mut)">This book isn’t available right now.</p>`;
@@ -779,6 +779,19 @@ function shelfInner(){const q=shq.trim().toLowerCase(),items=lib.map((b,i)=>[b,i
  const grid=items.length?`<div class="shg">${items.map(([b,i])=>`<button class="shi bk ${shSel===i?'sel':''} ${b.on||b.lent?'':'off'}" aria-label="${esc(b.t)}" onclick="shPick(${i})">${cv(b)}${b.read?'<em class="rd" title="Read">✓</em>':''}${b.lent?'<em class="ln">Lent</em>':''}<small>${esc(b.t)}</small></button>`).join('')}</div>`:`<div class="card empty"><b class="serif" style="font-size:16px">No matches</b><p>Nothing on your shelf matches “${esc(shq)}”.</p></div>`;
  return panel+grid+`<p style="color:var(--mut);font-size:13px">Tap a book to mark it read or hide it from neighbors.</p>`}
 function shelfView(){return `<form class="shs" onsubmit="document.activeElement.blur();return false"><input class="ri" id="shq" type="search" aria-label="Search your shelf" placeholder="Search your shelf (${lib.length} book${lib.length===1?'':'s'})" value="${esc(shq)}" oninput="shSearch(this.value)" autocomplete="off"><button class="chip on" type="submit" aria-label="Search"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg></button></form><div id="shwrap">${shelfInner()}</div>`}
+
+/* ---------- discover: search ---------- */
+let dq='';
+function dMatch(b,q){const h=((b.t||'')+' '+(b.a||'')+' '+(b.o||'')).toLowerCase();return q.split(/\s+/).every(w=>h.includes(w))}
+function discGrid(){const q=dq.trim().toLowerCase(),inF=b=>filt==='all'||(filt==='b'&&b.b)||(filt==='n'&&!b.b),
+ all=near.filter(b=>inF(b)&&(!q||dMatch(b,q))),l=all.filter(b=>b.mi<=rng),far=all.length-l.length;
+ const grid=l.length?`<div class="grid">${l.map(b=>`<button class="bk" onclick="go('detail',${b.id})">${cv(b)}<p>${esc(b.t)}</p><small>${esc(b.o)} · ${esc(b.w)}</small><small>${b.b?'In your building':esc(b.d)}</small></button>`).join('')}</div>`:'';
+ const more=far>0?`<div class="card empty" style="margin-top:10px"><b class="serif" style="font-size:16px">${far} more ${far===1?'match is':'matches are'} outside ${rng} mi</b><button class="btn acc" onclick="pop=1;draw()">Change range</button></div>`:'';
+ if(l.length)return grid+more;
+ if(q){const t=dq.trim().slice(0,60),has=inWant(t);return more||`<div class="card empty"><b class="serif" style="font-size:18px">Nobody nearby has “${esc(t)}” yet</b><p>Add it to your want list and we’ll flag a swap if a neighbor shelves it.</p><button class="btn acc" ${has?'disabled':''} onclick="wantFromSearch()">${has?'On your want list ✓':'Add to want to read'}</button></div>`}
+ return `<div class="card empty"><b class="serif" style="font-size:18px">No books within ${rng} mi yet</b><p>${near.length?'Widen your range to see books from farther away.':'You’re the first one here. Neighbors who join will show up automatically.'}</p>${near.length?'<button class="btn acc" onclick="pop=1;draw()">Change range</button>':''}</div>`}
+function dSearch(v){dq=v;const g=$('dgrid');if(g)g.innerHTML=discGrid()}
+function wantFromSearch(){const v=dq.replace(/[<>&"`\\$]/g,'').trim().slice(0,60);if(!v||inWant(v))return;dbSet(`users/${me.id}/want/${key(v)}`,v);rebuild();const g=$('dgrid');if(g)g.innerHTML=discGrid();toast('Added to your want to read list')}
 
 /* ---------- notifications ---------- */
 function notify(){const R=Object.values(DB.requests||{}),cur={};R.forEach(r=>{if(r.to===me.id||r.from===me.id)cur[r.id]=r.status});

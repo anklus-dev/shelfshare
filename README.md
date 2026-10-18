@@ -86,3 +86,8 @@ A neighborhood book-lending app demo (HackATL). One static page, no build step. 
 - **New accounts start with an empty shelf.** The three auto-added "starter" classics are gone, and so is the background lookup of their covers. The welcome message now says "Scan your first book to start your shelf."
 - Existing accounts keep whatever books they already have. To start clean, delete the old users from Realtime Database (`ss/users`) and from Authentication.
 - No security-rule changes since v12.
+
+## What's new in v14
+
+- **Search on Discover**: a search box under the filter chips. It matches title, author or neighbor name (multiple words all have to match), updates as you type, and respects the building filter and your range. If matches exist beyond your range it offers "Change range". If nobody has the book, it offers "Add to want to read", which feeds swap matching. It filters books already loaded on the phone, so there are no extra network calls (3,000 books filter in about 1 ms).
+- No security-rule changes.
