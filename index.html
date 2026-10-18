@@ -582,7 +582,8 @@ async function findCover(b){let c=[];
   const v=(j.items||[]).map(x=>x.volumeInfo).find(v=>v&&v.imageLinks&&v.imageLinks.thumbnail);if(v)return v.imageLinks.thumbnail.replace(/^http:/,'https:').replace('&edge=curl','')}catch(e){}
  return ''}
 async function resolveCovers(){if(covBusy||!me||document.hidden)return;
- const todo=POOL.filter(b=>!COV[key(b.t)]&&!covTried.has(key(b.t)));if(!todo.length)return;covBusy=1;
+ return; /* no starter books any more, so nothing to resolve */
+ const todo=[];covBusy=1;
  try{for(const b of todo){covTried.add(key(b.t));const u=await findCover(b);if(u&&COVER_OK.test(u)){COV[key(b.t)]=u;dbSet('covers/'+key(b.t),u);if(tab!=='s'&&!document.querySelector('.scrim,.scrim2')&&!(document.activeElement&&/INPUT|TEXTAREA/.test(document.activeElement.tagName)))draw()}await sleep(1100)}}
  finally{covBusy=0}}
 
@@ -829,11 +830,9 @@ async function signUp(){const name=cleanName(($('un')||{}).value).slice(0,20),un
  if(!name)return aerr('Enter a name neighbors will see.');if(!em)return aerr('Enter your email.');if(pw.length<6)return aerr('Use at least 6 characters for your password.');abusyOn(1);aerr('');
  try{setAuth(await authCall('signUp',{email:em,password:pw,returnSecureToken:true}));ls.set('ss_pn_'+AU.uid,JSON.stringify({name,unit,ref:cleanRef(($('ur')||{}).value)}));await enter(true)}
  catch(e){if(AU&&!me){AU=null;ls.del('ss_auth')}aerr(e.enterMsg||aMsg(e))}abusyOn(0)}
-/* the profile (and starter books) live in the database under the account's uid */
+/* the profile lives in the database under the account's uid */
 async function makeProfile(name,unit,refCode){const U=DB.users||{},loc=await Promise.race([detectLoc(),new Promise(r=>setTimeout(()=>r(LOC||{...PRESETS[0],src:'default'}),6000))]);
- const held={};Object.values(U).forEach(u=>Object.values(u.books||{}).forEach(b=>held[b.t]=(held[b.t]||0)+1));
- const pick=POOL.map((b,i)=>[b,i]).sort((x,y)=>(held[x[0].t]||0)-(held[y[0].t]||0)||x[1]-y[1]).slice(0,3).map(x=>x[0]),t0=Date.now()*10,books={};
- pick.forEach((b,i)=>books['b'+(t0+i)]={id:t0+i,t:b.t,a:b.a,c:b.c,on:1});
+ const books={};
  const rb=refCode&&Object.entries(U).find(([id,u])=>u&&u.ref===refCode&&id!==AU.uid);
  const rec={name,unit,ref:genRef(name,AU.uid,U),joined:Date.now(),loc:{lat:loc.lat,lon:loc.lon,city:loc.city||'',region:loc.region||'',cc:loc.cc||'',src:loc.src||'ip'},books};if(rb)rec.refBy=rb[0];
  if(!(await dbSet('users/'+AU.uid,rec)))throw Object.assign(new Error('profile'),{enterMsg:'Your account was created but we couldn’t save your profile. Log in again to retry.'});return rec}
@@ -843,7 +842,7 @@ async function enter(fresh,silent){await sync(true);
  if(!u){let pn={};try{pn=JSON.parse(ls.get('ss_pn_'+AU.uid)||'{}')}catch(e){}
   const nm=cleanName(pn.name||(AU.email||'').split('@')[0].replace(/[^\p{L}\p{N}]/gu,' ')).slice(0,20)||'Neighbor';u=await makeProfile(nm,cleanName(pn.unit||'').slice(0,30),cleanRef(pn.ref));created=true;ls.del('ss_ref');if(pn.ref&&!u.refBy)setTimeout(()=>toast('That referral code wasn’t found, but you’re in!'),2600)}
  me={id:AU.uid,name:u.name,unit:u.unit||''};tab=(fresh||created)?'plan':'d';planSt=0;curClub=null;await afterLogin();draw();
- if(!silent)toast(fresh||created?`Welcome, ${me.name}. Three books are now on your shelf`:`Welcome back, ${me.name}`)}
+ if(!silent)toast(fresh||created?`Welcome, ${me.name}. Scan your first book to start your shelf`:`Welcome back, ${me.name}`)}
 async function afterLogin(){rebuild();
  if(!myLoc()){const l=LOC||await detectLoc();dbSet(`users/${me.id}/loc`,l)}
  if(!((DB.users||{})[me.id]||{}).ref)dbSet(`users/${me.id}/ref`,genRef(me.name,me.id,DB.users));

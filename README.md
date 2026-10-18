@@ -80,3 +80,9 @@ A neighborhood book-lending app demo (HackATL). One static page, no build step. 
 - **2 week free trial** on the sign-up plan page: a "Start your 2 week free trial" button under the main membership button. It works like the skip button (no card, nothing charged) but stays in the story. The Me tab then shows "Free trial · N days left" with an Upgrade button.
 - Referral share text and the "Referred by" line now say 25% off, matching the account page.
 - **Security rules changed again**: re-paste `firebase-rules.json` (adds `trialStart`) and Publish.
+
+## What's new in v13
+
+- **New accounts start with an empty shelf.** The three auto-added "starter" classics are gone, and so is the background lookup of their covers. The welcome message now says "Scan your first book to start your shelf."
+- Existing accounts keep whatever books they already have. To start clean, delete the old users from Realtime Database (`ss/users`) and from Authentication.
+- No security-rule changes since v12.
