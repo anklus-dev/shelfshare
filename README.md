@@ -1,93 +1,72 @@
-# ShelfShare: One Shared Shelf
+<p align="center">
+  <img src="docs/logo.png" alt="ShelfShare logo: an open book with a daisy growing from it" width="96">
+</p>
 
-A neighborhood book-lending app demo (HackATL). One static page, no build step. Your Firebase URL is already set in `index.html`.
+<h1 align="center">ShelfShare</h1>
+<p align="center"><b>One Shared Shelf.</b> Borrow and swap books with the people in your building and neighborhood.</p>
 
-## Updating the live site
+<p align="center">
+  <img src="docs/hero.png" alt="ShelfShare screens: Discover, a borrow request with the approval owl, a reading streak, and the neighborhood leaderboard" width="100%">
+</p>
 
-1. Replace everything in your repo folder with the files from this zip (`index.html`, `README.md`, `.nojekyll`).
-2. `git add -A && git commit -m "Add location, clubs, leaderboard" && git push`
-3. Wait about a minute, then hard refresh the site (Ctrl+Shift+R).
-4. Recommended: in the Firebase console, delete the `ss` node on the **Data** tab so old test accounts (which have no location) don't clutter the leaderboard.
+ShelfShare is a neighborhood book-lending app that I built with Claude over the 48 hours of **HackATL**. Most of us own books we have already read and want ones we have not, and our neighbors have the opposite problem. ShelfShare puts every shelf nearby in one place: scan a book to share it, find one you want, ask to borrow it, and pick it up from someone down the hall.
 
-## What's in this version
+It runs as a single static page, with no build step and no backend server to run.
 
-- **Real location.** At sign-up the app finds your approximate area from your connection (IP). A "Use precise location" button upgrades it with the browser's GPS (asks permission). Only a rounded position (about 1 km) and a city/state name are stored.
-- **Real neighbors only.** The demo neighbors and their books are gone. Discover lists books from actual accounts, sorted by distance, filtered by the range chip (1/10/30/50 mi). Each new account still gets three classics.
-- **Swap matches.** If you have a book on your want list that its owner also has, and the owner wants one of your books (want lists are on Me → Want to read), a swap banner appears. Approving a swap creates both loans.
-- **Shared feed.** Thoughts, likes and replies are now stored in the database. Thoughts on books you lent show "On your copy". Replies and new thoughts show up in Activity → Thoughtstream.
-- **Books read.** Mark books as read on your shelf (or "Finished reading" on a borrowed book).
-- **Book clubs.** Chats sorted by distance. Each area gets starter clubs automatically (city, neighborhood, classics, sci-fi, swap, statewide), each with a welcome message from ShelfShare. If you enter a building or neighborhood name at sign-up, you're added to a club for it (neighbors typing the same name share one). Anyone can start a club.
-- **Leaderboard** (Community → Leaderboard): books read or books lent, for Neighborhood (3 mi), Town (10 mi), City (30 mi) or State (same state).
+## What it does
 
-- **Activity** (requests, loans, Thoughtstream) is now the bell at the top right, which keeps the bottom dock balanced.
+| | |
+|---|---|
+| **Scan to share** | Point your camera at a barcode. ShelfShare reads the ISBN, looks the book up in Open Library and Google Books, and adds it to your shelf. If a book isn't in either catalog, add it by hand and photograph the cover. |
+| **Find books nearby** | Browse and search every book within your chosen range, filtered to your own building or to everyone around you. Want something nobody has yet? Add it to your want list, and ShelfShare flags a **swap match** when a neighbor wants one of your books too. |
+| **Borrow and swap** | Request a book or propose a swap. The lender approves, and a wise old owl flies in to carry the book away. Loans run two weeks and can be extended. |
+| **Read together** | Neighborhood and building book clubs with chat, plus a thoughts feed where borrowers share what they think without spoilers. |
+| **Build a reading habit** | Log pages to keep a daily streak, level up, and earn badges. Neighbors compete on leaderboards for books read, books lent, streak and pages. |
+| **Membership** | $10 a month, with a 2 week free trial and referral codes. Payments are a demo only: nothing is charged and no card is collected. |
 
-## Camera scanning
-- **Add** opens the camera and reads the ISBN barcode on the back cover (hold it steady, fill the frame; the light button helps in dim rooms). Two matching reads are required and the ISBN checksum is verified, so a misread is very unlikely.
-- Decoder: the browser's built-in BarcodeDetector where it works (Chrome/Android), otherwise a bundled ZXing WebAssembly decoder in `vendor/` (iPhone Safari, Firefox, desktop). No external CDN. Keep the `vendor/` folder next to `index.html`.
-- Lookup: **Open Library** (book data, ISBN-10/13, and its search index) and **Google Books** are asked at the same time. If a book isn't found, the screen shows which catalog said what, and separates "not listed" from "a catalog didn't answer". Covers are saved with the book and show everywhere it appears.
-- Adding by title: you can take a photo of the cover, which replaces the generated one (stored as a small ~10 KB image in the database).
-- Stock classics (Frankenstein, etc.) get real covers automatically: the first device to open the app looks each one up on Open Library and shares it through the database (`covers/` node), so there are no repeat lookups.
-- Backups if the camera can't be used (blocked permission, in-app browser): **take a photo** of the barcode, **type the ISBN** (10 or 13 digits), or **add by title**.
-- The camera needs https, which GitHub Pages provides. The browser will ask for camera permission the first time.
-- Open Library is community-maintained, so a brand-new or obscure edition can be missing. That is why Google Books is the backup and manual entry always works.
+## Screens
 
-## Location details
+<table>
+  <tr>
+    <td align="center" width="25%"><img src="docs/screens/discover.png" alt="Discover"><br><sub><b>Discover</b><br>Every shelf in range</sub></td>
+    <td align="center" width="25%"><img src="docs/screens/search.png" alt="Search"><br><sub><b>Search</b><br>By title, author or neighbor</sub></td>
+    <td align="center" width="25%"><img src="docs/screens/request.png" alt="Borrow request"><br><sub><b>Approve</b><br>Lenders get a request card</sub></td>
+    <td align="center" width="25%"><img src="docs/screens/owl.png" alt="The owl arrives"><br><sub><b>The owl</b><br>Approval, with a flourish</sub></td>
+  </tr>
+  <tr>
+    <td align="center" width="25%"><img src="docs/screens/shelf.png" alt="My shelf"><br><sub><b>Your shelf</b><br>Three-up grid with search</sub></td>
+    <td align="center" width="25%"><img src="docs/screens/streak.png" alt="Reading streak"><br><sub><b>Streaks</b><br>Log pages, keep the flame lit</sub></td>
+    <td align="center" width="25%"><img src="docs/screens/progress.png" alt="Progress and badges"><br><sub><b>Progress</b><br>Stats, levels, badges</sub></td>
+    <td align="center" width="25%"><img src="docs/screens/leaderboard.png" alt="Leaderboard"><br><sub><b>Leaderboard</b><br>Streak, pages, reads, loans</sub></td>
+  </tr>
+</table>
 
-- IP lookup tries ipwho.is, then get.geojs.io, then ipapi.co (free, no keys). Reverse lookup for GPS uses api.bigdatacloud.net. If every lookup fails (blocked network, VPN, ad blocker), the sign-up screen shows a city picker (Georgia cities) and defaults to Atlanta.
-- IP location is approximate: it can be tens of miles off, and venue or school Wi-Fi often reports the network's location. Everyone on the same Wi-Fi will appear "nearby". For the demo, that's a feature.
-- Geolocation only works on https (GitHub Pages is https).
+## How it is built
 
-## Accounts and security
-- Sign-up and log-in use **Firebase Authentication** (email + password). The Web API key is set in `index.html` (`CFG.API_KEY`); it is a public identifier, not a secret.
-- Security rules live in `firebase-rules.json`. Paste them in the Firebase console: Realtime Database, Rules tab, replace everything, Publish. After that only signed-in users can read, you can only change your own profile and books, only the lender can approve a request, and nobody can post as someone else.
-- Accounts are identified by Firebase user IDs. If you upgrade from the older name-only version, delete the `ss` node once (Data tab) so old test data goes away.
+- **One file.** `index.html` holds the whole app in vanilla JavaScript, with no framework and no bundler. Only the barcode decoder in `vendor/` is separate, and it is self-hosted so scanning works on any phone.
+- **Firebase, called directly.** Accounts use Firebase Authentication and data lives in Realtime Database, both over plain REST. Phones poll every 2.5 seconds to stay in sync.
+- **Scanning.** The browser's native `BarcodeDetector` is used where it exists, with a WebAssembly fallback (`zxing-wasm`) elsewhere. Reads are checked against the ISBN checksum and confirmed twice before a lookup.
+- **Rules do the security.** Every database write is checked by `firebase-rules.json`: you can only edit your own profile and books, only a lender can approve their own requests, and names on posts must match the writer's profile. The rules were tested against a rules evaluator with attack cases, not just the happy path.
+- **Privacy by design.** Neighbors see your approximate area, never your exact location.
 
-## Membership and referrals (demo)
-- After creating an account, new users see a $10/month membership page. Payments are **not** wired up: "Start membership" opens a demo notice and nothing is charged or collected. The "or skip, this is just the demo!" link continues without it.
-- The Me tab has a Membership card and a personal **referral code** (like ALIC-7K2Q) with Copy and Share buttons. Shared links look like `your-site/?ref=ALIC-7K2Q` and pre-fill the code on sign-up. The card counts how many neighbors joined with your code. The "first month free" reward is a promise only, not implemented.
-- If you already published the security rules, paste the updated `firebase-rules.json` again (it adds three small fields: plan, ref, refBy).
+## Run your own
 
-## Resetting and limits
+1. Create a Firebase project. Turn on **Email/Password** sign-in and create a **Realtime Database**.
+2. In the database's **Rules** tab, paste `firebase-rules.json` and publish.
+3. In `index.html`, set `FIREBASE_URL` and `API_KEY` at the top of the script to your project's values. The web API key is meant to be public and the rules protect the data. You can also restrict it to your site's domain in Google Cloud.
+4. Put the files on GitHub Pages (or any static host) and open the site.
 
-- **Reset between demos:** delete the `ss` node in Firebase (Data tab).
-- **Passwords can't be recovered by us.** Use the Forgot password link on the log-in screen (Firebase sends the email). Emails and passwords live in Firebase Authentication, never in the shared database.
-- Firebase limits how many accounts one internet connection can create per hour. On shared venue wifi, create a couple of demo accounts ahead of time.
-- The app polls the database every ~2.5 seconds (only while the tab is visible). Chat and requests arrive with that small delay.
+Files: `index.html`, `vendor/` (barcode decoder), `icons/` and `manifest.webmanifest` (logo and home-screen icon), `firebase-rules.json`.
 
-## Demo script (two phones)
+## What is real and what is a demo
 
-1. Phone 1: create `Alex`, building "Maple Court Apartments". Phone 2: create `Sam`, same building.
-2. Sam's Discover shows Alex's books. Open Community → the building club and chat.
-3. Sam requests a book; Alex approves in Activity. Sam shares a thought; it shows up in Alex's Thoughtstream. Alex replies.
-4. Each marks a book as read, then check Community → Leaderboard.
+Real: accounts, scanning and lookup, requests, swaps, clubs, chat, streaks, leaderboards, and the security rules.
 
-## What's new in v10
+Demo only: **payments**. The membership page, the free trial and the referral rewards show the intended flow, but nothing is charged. A launch version would add Stripe checkout and enforce trials and referral credit on a server.
 
-- **New logo**: the book-and-daisy icon is on the login screen, the top bar, the membership page, the browser tab, and the home-screen icon. Deploy the new `icons/` folder and `manifest.webmanifest` along with `index.html`.
-- **Reading streaks**: on the Me tab, tap "Log today's reading", pick a book, and enter the pages. Any log counts for the day. You can also log for yesterday. A streak survives until the end of the next day, so a streak from yesterday shows "read today to keep it going".
-- **Progress tab** (Me, then Progress): total pages, books finished, current and longest streak, days read, average pages per day, pages this week, most-read book, 11 badges and 9 levels (New Reader up to Grand Librarian).
-- **Leaderboard** now has Streak and Pages boards alongside Read and Lent.
-- **Security rules changed**: re-paste `firebase-rules.json` into Realtime Database, Rules, and Publish. Without this, logging pages will fail to save. Data is stored at `users/<uid>/rl/<YYYY-MM-DD>` as `{p: pages, t: title}`.
+## What is next
 
-## What's new in v11
-
-- **Shelf is a 3-per-row grid** of covers with a search box (matches title or author). Tap a cover to open a panel with "Mark as read" and "Share/hide from neighbors". Read books get a green check; lent books get a "Lent" tag; hidden books are dimmed.
-- **Referral line** now reads: "Friends who join with it get 25% off their first month free, and you get 25% off your next!" The sign-up field label says "25% off your first month" to match.
-- No security-rule changes since v10.
-
-## What's new in v12
-
-- **2 week free trial** on the sign-up plan page: a "Start your 2 week free trial" button under the main membership button. It works like the skip button (no card, nothing charged) but stays in the story. The Me tab then shows "Free trial · N days left" with an Upgrade button.
-- Referral share text and the "Referred by" line now say 25% off, matching the account page.
-- **Security rules changed again**: re-paste `firebase-rules.json` (adds `trialStart`) and Publish.
-
-## What's new in v13
-
-- **New accounts start with an empty shelf.** The three auto-added "starter" classics are gone, and so is the background lookup of their covers. The welcome message now says "Scan your first book to start your shelf."
-- Existing accounts keep whatever books they already have. To start clean, delete the old users from Realtime Database (`ss/users`) and from Authentication.
-- No security-rule changes since v12.
-
-## What's new in v14
-
-- **Search on Discover**: a search box under the filter chips. It matches title, author or neighbor name (multiple words all have to match), updates as you type, and respects the building filter and your range. If matches exist beyond your range it offers "Change range". If nobody has the book, it offers "Add to want to read", which feeds swap matching. It filters books already loaded on the phone, so there are no extra network calls (3,000 books filter in about 1 ms).
-- No security-rule changes.
+- Real payments, with trials and referral credit enforced on a server
+- Push reminders for due dates and new requests
+- Direct messages between lender and borrower to arrange the handoff
+- Search beyond neighbors' shelves, across the whole catalog
