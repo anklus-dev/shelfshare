@@ -664,7 +664,7 @@ function trialLeft(mu){return Math.max(0,14-Math.floor((Date.now()-(mu.trialStar
 function startTrial(){const mu=(DB.users||{})[me.id]||{};if(mu.plan!=='member'){dbSet(`users/${me.id}/trialStart`,mu.trialStart||Date.now());dbSet(`users/${me.id}/plan`,'trial')}planSt=0;go('d');toast('Your 2 week free trial has started. Happy reading!')}
 function skipPlan(){const mu=(DB.users||{})[me.id]||{};if(!mu.plan)dbSet(`users/${me.id}/plan`,'skipped');planSt=0;go('d');toast('Skipped. Enjoy the demo!')}
 function joinPlan(){planSt=0;go('plan')}
-function acctCard(){const U=DB.users||{},mu=U[me.id]||{},code=mu.ref||'',n=Object.values(U).filter(u=>u.refBy===me.id).length,isM=mu.plan==='member',isT=mu.plan==='trial';
+function acctCard(){if(CFG.DEMO)return '';const U=DB.users||{},mu=U[me.id]||{},code=mu.ref||'',n=Object.values(U).filter(u=>u.refBy===me.id).length,isM=mu.plan==='member',isT=mu.plan==='trial';
  return `<div class="card acct"><div class="item"><div style="flex:1"><b class="serif" style="font-size:17px">Membership</b><small>${isM?'ShelfShare Member · $10/month':isT?'Free trial · '+trialLeft(mu)+' days left':'Not a member yet'}</small><small>${isM?'Demo only: nothing is charged':isT?'Then $10/month. Cancel anytime':'You skipped the demo checkout'}</small></div>${isM?'<span class="tag">Active</span>':isT?'<button class="chip on" onclick="joinPlan()">Upgrade</button>':'<button class="chip on" onclick="joinPlan()">Join · $10/mo</button>'}</div>
  <div class="hr"></div><b style="font-size:14px">Your referral code</b><div class="refcode" aria-label="Your referral code">${esc(code||'…')}</div>
  <div class="two"><button class="chip on" onclick="copyRef()">Copy code</button><button class="chip" onclick="shareRef()">Share invite link</button></div>
@@ -1013,7 +1013,7 @@ async function enter(fresh,silent){await sync(true);
  let u=(DB.users||{})[AU.uid],created=false;
  if(!u){let pn={};try{pn=JSON.parse(ls.get('ss_pn_'+AU.uid)||'{}')}catch(e){}
   const nm=cleanName(pn.name||(AU.email||'').split('@')[0].replace(/[^\p{L}\p{N}]/gu,' ')).slice(0,20)||'Neighbor';u=await makeProfile(nm,cleanName(pn.unit||'').slice(0,30),cleanRef(pn.ref));created=true;ls.del('ss_ref');if(pn.ref&&!u.refBy)setTimeout(()=>toast('That referral code wasn’t found, but you’re in!'),2600)}
- me={id:AU.uid,name:u.name,unit:u.unit||''};tab=(fresh||created)?'plan':'d';planSt=0;curClub=null;await afterLogin();draw();
+ me={id:AU.uid,name:u.name,unit:u.unit||''};tab=((fresh||created)&&!CFG.DEMO)?'plan':'d';planSt=0;curClub=null;await afterLogin();draw();
  if(!silent)toast(fresh||created?`Welcome, ${me.name}. Scan your first book to start your shelf`:`Welcome back, ${me.name}`)}
 async function afterLogin(){rebuild();
  if(!myLoc()){const l=LOC||await detectLoc();dbSet(`users/${me.id}/loc`,l)}
