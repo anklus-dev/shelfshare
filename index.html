@@ -179,10 +179,13 @@ select.ri{border-radius:12px;width:100%;margin-top:6px}
 .shi.off .cover{opacity:.45;filter:grayscale(.6)}.shi.sel .cover{outline:3px solid #E8833A;outline-offset:2px}
 .shi em{position:absolute;font-style:normal;font:700 11px 'DM Sans',sans-serif;z-index:3}.shi .rd{top:4px;right:4px;width:20px;height:20px;border-radius:50%;background:var(--pine,#2F5D50);color:#fff;display:grid;place-items:center}.shi .ln{left:4px;top:4px;background:rgba(43,30,20,.8);color:#fff;padding:2px 6px;border-radius:6px}
 .shp{margin-bottom:12px}
+
+.shi .bd2{position:absolute;top:4px;right:4px;display:flex;flex-direction:column;align-items:flex-end;gap:3px;z-index:3}
+.shi .bd2 em{position:static}.shi .bd2 .ln{padding:2px 6px;border-radius:6px;background:rgba(43,30,20,.8);color:#fff}
 </style></head><body>
 <div id="app"><header id="bar"></header><main id="screen"></main><nav class="tabs" id="tabs"></nav></div>
 <script>
-const CFG={FIREBASE_URL:'https://shelfshare-11e68-default-rtdb.firebaseio.com/',API_KEY:'AIzaSyC1wRKt3VI819B8kdSJrRWaF7-FNd-LaYs'}; // Firebase Realtime Database URL + Web API key (see README.md)
+const CFG={FIREBASE_URL:'https://shelfshare-11e68-default-rtdb.firebaseio.com/',API_KEY:'AIzaSyC1wRKt3VI819B8kdSJrRWaF7-FNd-LaYs',DEMO:0}; // Firebase Realtime Database URL + Web API key (see README.md)
 const BASE=CFG.FIREBASE_URL.replace(/\/$/,'');
 let DB={},me=null,AU=null,last='',pend=0,wver=0,DBok=false,seen=null,mem={},LOC=null,locP=null,locSt='idle';
 const ls={get(k){try{return localStorage.getItem(k)}catch(e){return mem[k]||null}},set(k,v){try{localStorage.setItem(k,v)}catch(e){mem[k]=v}},del(k){try{localStorage.removeItem(k)}catch(e){delete mem[k]}}};
@@ -776,7 +779,7 @@ function shPick(i){shSel=shSel===i?-1:i;const w=$('shwrap');if(w)w.innerHTML=she
 function shSearch(v){shq=v;shSel=-1;const w=$('shwrap');if(w)w.innerHTML=shelfInner()}
 function shelfInner(){const q=shq.trim().toLowerCase(),items=lib.map((b,i)=>[b,i]).filter(([b])=>!q||(b.t+' '+(b.a||'')).toLowerCase().includes(q)),sb=lib[shSel];
  const panel=sb&&items.some(([,i])=>i===shSel)?`<div class="card shp"><div class="item"><div style="flex:1"><b class="serif" style="font-size:17px">${esc(sb.t)}</b><small>${esc(sb.a||'')}</small><span class="tag ${sb.on?'':'off'}">${sb.lent?'Lent to '+esc(sb.lent):sb.on?'Visible to neighbors':'Hidden'}</span></div><button class="chip" aria-label="Close" onclick="shPick(${shSel})">✕</button></div><div class="two" style="margin-top:10px"><button class="chip ${sb.read?'on':''}" onclick="readB(${shSel})">${sb.read?'Read ✓':'Mark as read'}</button><button class="chip ${sb.on?'on':''}" onclick="togB(${shSel})">${sb.on?'Shared: tap to hide':'Hidden: tap to share'}</button></div></div>`:'';
- const grid=items.length?`<div class="shg">${items.map(([b,i])=>`<button class="shi bk ${shSel===i?'sel':''} ${b.on||b.lent?'':'off'}" aria-label="${esc(b.t)}" onclick="shPick(${i})">${cv(b)}${b.read?'<em class="rd" title="Read">✓</em>':''}${b.lent?'<em class="ln">Lent</em>':''}<small>${esc(b.t)}</small></button>`).join('')}</div>`:`<div class="card empty"><b class="serif" style="font-size:16px">No matches</b><p>Nothing on your shelf matches “${esc(shq)}”.</p></div>`;
+ const grid=items.length?`<div class="shg">${items.map(([b,i])=>`<button class="shi bk ${shSel===i?'sel':''} ${b.on||b.lent?'':'off'}" aria-label="${esc(b.t)}" onclick="shPick(${i})">${cv(b)}${b.read||b.lent?`<span class="bd2">${b.lent?'<em class="ln">Lent</em>':''}${b.read?'<em class="rd" title="Read">✓</em>':''}</span>`:''}<small>${esc(b.t)}</small></button>`).join('')}</div>`:`<div class="card empty"><b class="serif" style="font-size:16px">No matches</b><p>Nothing on your shelf matches “${esc(shq)}”.</p></div>`;
  return panel+grid+`<p style="color:var(--mut);font-size:13px">Tap a book to mark it read or hide it from neighbors.</p>`}
 function shelfView(){return `<form class="shs" onsubmit="document.activeElement.blur();return false"><input class="ri" id="shq" type="search" aria-label="Search your shelf" placeholder="Search your shelf (${lib.length} book${lib.length===1?'':'s'})" value="${esc(shq)}" oninput="shSearch(this.value)" autocomplete="off"><button class="chip on" type="submit" aria-label="Search"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg></button></form><div id="shwrap">${shelfInner()}</div>`}
 
@@ -818,7 +821,7 @@ const aerr=m=>{const e=$('aerr');if(e)e.textContent=m||''};
 const aMsg=e=>CFG.API_KEY.startsWith('__')?'Setup incomplete: add the Firebase Web API key (see README).':(AERR[e&&e.code]||'Something went wrong. Please try again.');
 function setMode(m){const e=$('ue');if(e)aemail=e.value;amode=m;draw()}
 function abusyOn(on){abusy=on;const b=$('abtn');if(b){b.disabled=!!on;b.style.opacity=on?.6:1}}
-function onboard(){const up=amode==='up',rs=amode==='reset',f='class="ri" style="width:100%;border-radius:14px;padding:12px"';
+function onboard(){if(CFG.DEMO)return onboardDemo();const up=amode==='up',rs=amode==='reset',f='class="ri" style="width:100%;border-radius:14px;padding:12px"';
  return `<div style="min-height:100%;display:flex;flex-direction:column;justify-content:center"><img class="logo" src="icons/logo.png" width="150" alt="ShelfShare: an open book with a flower growing from it" onerror="this.remove()">
  <div class="seg" style="margin-bottom:6px"><button class="${up?'on':''}" onclick="setMode('up')">Create account</button><button class="${!up?'on':''}" onclick="setMode('in')">Log in</button></div>
  <form onsubmit="event.preventDefault();authGo()" novalidate>
@@ -829,7 +832,7 @@ function onboard(){const up=amode==='up',rs=amode==='reset',f='class="ri" style=
  <p id="aerr" role="alert" style="color:#a3392b;font-size:13px;min-height:18px;margin:8px 0 0"></p>
  <button id="abtn" class="btn acc" type="submit">${up?'Create account':rs?'Send reset link':'Log in'}</button></form>
  ${amode==='in'?`<button class="back" style="margin:6px auto 0;display:block" onclick="setMode('reset')">Forgot password?</button>`:''}${rs?`<button class="back" style="margin:6px auto 0;display:block" onclick="setMode('in')">‹ Back to log in</button>`:''}
- ${up?`<p style="color:var(--mut);font-size:13px;margin-top:10px;text-align:center">We’ll put three classics on your shelf so neighbors have something to borrow right away.</p><p class="loc" style="font-size:12px">We use your connection to find your approximate area. Neighbors only see roughly where you are (rounded to under a mile), never your address or email.</p>`:''}</div>`}
+ ${up?`<p style="color:var(--mut);font-size:13px;margin-top:10px;text-align:center">Once you’re in, scan a book to start your shelf and share it with neighbors.</p><p class="loc" style="font-size:12px">We use your connection to find your approximate area. Neighbors only see roughly where you are (rounded to under a mile), never your address or email.</p>`:''}</div>`}
 async function authGo(){if(abusy)return;if(amode==='up')return signUp();if(amode==='reset')return resetPw();return logIn()}
 const cleanName=s=>String(s||'').replace(/[^\p{L}\p{N} .'’-]/gu,'').trim();
 const emailVal=()=>(($('ue')||{}).value||'').trim().toLowerCase(),pwVal=()=>($('up')||{}).value||'';
@@ -888,5 +891,24 @@ setInterval(()=>{if(!document.hidden)sync()},2500);addEventListener('storage',()
   for(let i=0;i<5&&AU&&!me;i++){try{await enter(false,true)}catch(e){if(!AU)break;if(e.enterMsg&&/profile/.test(e.enterMsg))break;await sleep(2000)}}
   if(AU&&!me){AU=null;amode='in'}}
  draw()})();
+
+/* ---------- demo mode: just a username (set CFG.DEMO to 1) ---------- */
+function onboardDemo(){return `<div style="min-height:100%;display:flex;flex-direction:column;justify-content:center"><img class="logo" src="icons/logo.png" width="150" alt="ShelfShare: an open book with a flower growing from it" onerror="this.remove()">
+ <h1 style="font-size:38px;text-align:center;margin-top:4px">ShelfShare</h1><p class="tag-l" style="font-size:15px;text-align:center;margin-bottom:18px">One Shared Shelf</p>
+ <form onsubmit="event.preventDefault();demoGo()" novalidate><label class="lbl" for="dn">Pick a username to jump in</label>
+ <input id="dn" class="ri" style="width:100%;border-radius:14px;padding:12px" maxlength="20" placeholder="e.g. Alex" autocomplete="off" autocapitalize="words" value="${esc(aemail)}" oninput="aemail=this.value">
+ <p id="aerr" role="alert" style="color:#a3392b;font-size:13px;min-height:18px;margin:8px 0 0"></p>
+ <button id="abtn" class="btn acc" type="submit">Start sharing</button></form>
+ <p style="color:var(--mut);font-size:13px;margin-top:10px;text-align:center">Demo mode: no email or password. Use the same username again to come back to your shelf.</p><p id="locline" class="loc"></p></div>`}
+function demoCreds(name){let k=name.toLowerCase().replace(/[^a-z0-9]/g,'');if(!k)k='u'+[...name].map(c=>c.codePointAt(0).toString(36)).join('');return {email:k.slice(0,40)+'@demo.shelfshare.app',password:'shelfshare-demo-login'}}
+async function demoGo(){if(abusy)return;const name=cleanName(($('dn')||{}).value).slice(0,20);if(name.length<2)return aerr('Pick a username with at least 2 letters.');
+ const {email,password}=demoCreds(name);abusyOn(1);aerr('');let fresh=false;
+ try{
+  try{setAuth(await authCall('signInWithPassword',{email,password,returnSecureToken:true}))}
+  catch(e){if(!e||!['EMAIL_NOT_FOUND','INVALID_LOGIN_CREDENTIALS','INVALID_PASSWORD'].includes(e.code))throw e;
+   setAuth(await authCall('signUp',{email,password,returnSecureToken:true}));fresh=true}
+  if(fresh)ls.set('ss_pn_'+AU.uid,JSON.stringify({name,unit:'Class demo',ref:''}));
+  await enter(fresh)}
+ catch(e){if(AU&&!me){AU=null;ls.del('ss_auth')}aerr(e.enterMsg||aMsg(e))}abusyOn(0)}
 
 </script></body></html>
