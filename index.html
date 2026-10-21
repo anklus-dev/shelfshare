@@ -182,6 +182,17 @@ select.ri{border-radius:12px;width:100%;margin-top:6px}
 
 .shi .bd2{position:absolute;top:4px;right:4px;display:flex;flex-direction:column;align-items:flex-end;gap:3px;z-index:3}
 .shi .bd2 em{position:static}.shi .bd2 .ln{padding:2px 6px;border-radius:6px;background:rgba(43,30,20,.8);color:#fff}
+/* loans */
+.loan.act{border:2px solid #E8833A}.loan .btn{margin-top:10px}.loan .mt{display:block;margin-top:8px;color:var(--mut)}
+.steps{display:flex;gap:6px;margin-top:10px}.steps span{flex:1;text-align:center;font-size:11px;padding:4px 0;border-radius:99px;background:var(--line);color:var(--mut)}.steps .on{background:var(--pinebg);color:var(--pine);font-weight:700}
+.dotu{display:inline-block;width:8px;height:8px;border-radius:50%;background:#d4553a;margin-left:6px;vertical-align:middle}
+.stars{display:flex;gap:6px;margin:8px 0}.stars button{font-size:30px;line-height:1;color:#E8B04A;padding:2px 4px}.stars button:hover,.stars button:focus-visible{transform:scale(1.15)}
+.meet{display:flex;gap:8px;align-items:center;padding:8px 12px;background:var(--card);border-bottom:1px solid var(--line);flex-wrap:wrap}.meet small{display:block;color:var(--mut);font-size:12px}.meet.ok{background:var(--pinebg)}
+.guide{list-style:none;padding:0;margin:0 0 14px}.guide li{margin-bottom:10px}.guide b{display:block;font-size:14px}.guide span{display:block;color:var(--mut);font-size:13px;line-height:1.35}
+.lnk{color:var(--pine);font-weight:700;text-decoration:underline;font-size:inherit}
+.hist{margin-bottom:8px}
+.pin svg{width:14px;height:14px;vertical-align:-2px;margin-right:2px}.pin{display:inline-block}
+#tmsgs{flex:1;min-height:0;overflow-y:auto;padding:14px}#thead{flex:none}
 </style></head><body>
 <div id="app"><header id="bar"></header><main id="screen"></main><nav class="tabs" id="tabs"></nav></div>
 <script>
@@ -249,10 +260,10 @@ const locLabel=l=>l?([l.city,l.region].filter(Boolean).join(', ')||'your area'):
 /* ---------- app state ---------- */
 let COV={},lib=[],want=[],near=[],asec='share',csec='clubs',curClub=null,ropen=null,rng=30,pop=0,tab='d',filt='all',seg='mine',det=null,scanSt=0,upd=0,newB=null,lbM='read',lbR='town',tseen=null,tnote=null,lastMsgHtml='';
 let pc={b:0,mode:'Page',n:112,txt:'I can’t believe I waited this long to read it. The opening hooked me instantly.',sp:0};
-const STL={pending:'Waiting',approved:'Accepted',declined:'Declined',returned:'Returned'};
+const STL={pending:'Waiting',approved:'Accepted',declined:'Declined',returned:'Returned',cancelled:'Cancelled',lost:'Lost'};
 const RANGES=[['hood','Neighborhood',3],['town','Town',10],['city','City',30],['state','State',null]];
 const KIND={building:'Building',hood:'Neighborhood',town:'Town',city:'City',state:'Statewide',custom:'Community'};
-const daysLeft=r=>Math.max(1,14+(r.ext||0)-Math.floor((Date.now()-(r.appTs||Date.now()))/864e5));
+const daysLeft=r=>Math.max(1,14+(r.ext||0)-Math.floor((Date.now()-pickTs(r))/864e5));
 const thoughtsArr=()=>Object.values(DB.thoughts||{}).sort((a,b)=>b.ts-a.ts);
 const nLikes=t=>Object.keys(t.likes||{}).length;
 const reps=t=>Object.values(t.replies||{}).sort((a,b)=>a.ts-b.ts);
@@ -283,14 +294,14 @@ const ic=k=>`<svg viewBox="0 0 24 24">${I[k]}</svg>`;
 function toast(m){document.querySelectorAll('.toast').forEach(e=>e.remove());const t=document.createElement('div');t.className='toast';t.textContent=m;$('app').appendChild(t);setTimeout(()=>t.remove(),2800)}
 
 /* ---------- navigation ---------- */
-function go(t,d){tab=t;det=d||null;if(t==='a')upd=0;if(t==='u')curClub=null;scanSt=0;draw();$('screen').scrollTop=0}
+function go(t,d){if(t!=='thr'){clearInterval(thrTimer);thr=null}closeSheet();tab=t;det=d||null;if(t==='a')upd=0;if(t==='u')curClub=null;scanSt=0;draw();$('screen').scrollTop=0}
 
 /* ---------- derived data ---------- */
 function rebuild(){
  const U=DB.users||{},R=Object.values(DB.requests||{}),meU=U[me.id]||{},ml=meU.loc,su=slug(meU.unit||'');
  COV={};Object.entries(DB.covers||{}).forEach(([k,u])=>{if(typeof u==='string')COV[k]=u});Object.values(U).forEach(u=>Object.values(u.books||{}).forEach(b=>{if(b.cu&&!COV[slug(b.t)])COV[slug(b.t)]=b.cu}));
- const lentIds=new Set(R.filter(r=>r.status==='approved').map(r=>r.bookId));
- lib=Object.values(meU.books||{}).sort((x,y)=>x.id-y.id).map(b=>{const r=R.find(r=>r.bookId===b.id&&r.status==='approved');return {...b,lent:r&&r.fromName,due:r&&daysLeft(r),rid:r&&r.id,read:isRead(b.t)}});
+ const lentIds=new Set(R.filter(isAct).map(r=>r.bookId));
+ lib=Object.values(meU.books||{}).sort((x,y)=>x.id-y.id).map(b=>{const r=R.find(r=>r.bookId===b.id&&isAct(r));return {...b,lent:r&&r.fromName,due:r&&daysLeft(r),rid:r&&r.id,read:isRead(b.t)}});
  want=Object.values(meU.want||{});
  near=[];
  Object.entries(U).forEach(([id,u])=>{if(id===me.id)return;const d=dist(ml,u.loc),inB=!!su&&su===slug(u.unit||'')&&(d==null||d<2);
@@ -299,7 +310,7 @@ function rebuild(){
 function swapFor(b){ // one of my available books that b's owner wants, if I want b
  if(!inWant(b.t))return null;const ou=(DB.users||{})[b.uid];if(!ou)return null;const ow=Object.values(ou.want||{}).map(slug);
  return lib.find(x=>x.on&&!x.lent&&ow.includes(slug(x.t)))||null}
-const asked=b=>Object.values(DB.requests||{}).some(r=>r.from===me.id&&r.bookId===b.id&&(r.status==='pending'||r.status==='approved'));
+const asked=b=>Object.values(DB.requests||{}).some(r=>r.from===me.id&&r.bookId===b.id&&(r.status==='pending'||isAct(r)));
 
 /* ---------- discover ---------- */
 function popup(){return `<div class="scrim" onclick="pop=0;draw()"><div class="sheet" onclick="event.stopPropagation()"><b class="serif" style="font-size:18px">Search range</b><p style="color:var(--mut);font-size:13px;margin-top:2px">Show books from neighbors within this distance.</p><div class="row" style="margin:12px 0 4px">${[1,10,30,50].map(n=>`<button class="chip ${rng===n?'on':''}" onclick="rng=${n};draw()">${n} mi</button>`).join('')}</div><button class="btn acc" onclick="pop=0;draw()">Show ${near.filter(b=>b.mi<=rng).length} books</button></div></div>`}
@@ -316,7 +327,7 @@ function detail(){
  if(!b)return `<button class="back" onclick="go('d')">‹ Back to discover</button><p style="color:var(--mut)">This book isn’t available right now.</p>`;
  const done=asked(b),mine=swapFor(b),tt=thoughtsArr().filter(t=>slug(t.t)===slug(b.t)).slice(0,3);
  return `<button class="back" onclick="go('d')">‹ Back to discover</button>
- <div class="hero">${cv(b)}<div><h2 style="font-size:24px;line-height:1.1">${esc(b.t)}</h2><p style="color:var(--mut);margin:4px 0 10px">${esc(b.a)}</p><span class="tag">Available</span><p style="margin-top:12px"><b>${esc(b.o)}</b><br><span style="color:var(--mut)">${esc(b.w)} · ${b.b?'In your building':esc(b.d)}</span></p></div></div>
+ <div class="hero">${cv(b)}<div><h2 style="font-size:24px;line-height:1.1">${esc(b.t)}</h2><p style="color:var(--mut);margin:4px 0 10px">${esc(b.a)}</p><span class="tag">Available</span><p style="margin-top:12px"><b>${esc(b.o)}</b><br><span style="color:var(--mut)">${esc(b.w)} · ${b.b?'In your building':esc(b.d)}<br>${esc(repChip(b.uid))}</span></p></div></div>
  ${mine&&!done?`<div class="swap"><b class="serif" style="font-size:17px">You can swap</b><p style="font-size:13px;margin-top:2px">${esc(b.t)} is on your want list, and ${esc(b.o)} wants ${esc(mine.t)}.</p><div class="pair">${cv(mine)}<span style="font-size:22px">⇄</span>${cv(b)}</div><button class="btn acc" onclick="req(${b.id},1)">Propose swap</button></div>`:''}
  ${done?`<p class="tag" style="padding:10px 14px">Request sent to ${esc(b.o)}. Check Activity for updates.</p>`:`<button class="btn ${mine?'ghost':''}" onclick="req(${b.id},0)">${mine?'Borrow without swapping':'Request to borrow'}</button>`}
  <button class="btn ghost" onclick="toggleWant(${b.id});draw()">${inWant(b.t)?'✓ On your want list':'Mark as want to read'}</button>
@@ -340,16 +351,15 @@ function addWant(){const i=$('wi');const v=(i&&i.value||'').replace(/[<>&"`\\$]/
 function rmWant(k){dbSet(`users/${me.id}/want/${k}`,null);rebuild();draw()}
 
 /* ---------- requests ---------- */
-function req(id,sw){const b=near.find(x=>x.id===id);if(!b)return;realReq(b,sw?swapFor(b):null)}
+function req(id,sw){const b=near.find(x=>x.id===id);if(!b)return;policyGate(()=>realReq(b,sw?swapFor(b):null))}
 function realReq(b,offer){const id='r'+uid(),rec={id,bookId:b.id,t:b.t,a:b.a,c:b.c,from:me.id,fromName:me.name,to:b.uid,toName:b.o,status:'pending',ts:Date.now()};
  if(offer)rec.offer={id:offer.id,t:offer.t,a:offer.a,c:offer.c};
  dbSet('requests/'+id,rec);if(seen)seen[id]='pending';asec='share';go('a');toast(offer?'Swap proposed to '+b.o:'Request sent to '+b.o)}
 async function apR(id,ok){if(owlBusy)return;if(ok)await owlTake(id);return apDo(id,ok)}
 function apDo(id,ok){const r=(DB.requests||{})[id];if(!r)return;const now=Date.now();
- dbSet('requests/'+id,{...r,status:ok?'approved':'declined',appTs:now});
- if(ok&&r.offer){const id2='r'+uid();dbSet('requests/'+id2,{id:id2,bookId:r.offer.id,t:r.offer.t,a:r.offer.a,c:r.offer.c,from:r.to,fromName:r.toName,to:r.from,toName:r.fromName,status:'approved',ts:now,appTs:now,swapOf:id})}
+ dbSet(`requests/${id}/status`,ok?'approved':'declined');if(ok){dbSet(`requests/${id}/appTs`,now);dbSet(`requests/${id}/fl`,2)}
+ if(ok&&r.offer){const id2='r'+uid();dbSet('requests/'+id2,{id:id2,bookId:r.offer.id,t:r.offer.t,a:r.offer.a,c:r.offer.c,from:r.to,fromName:r.toName,to:r.from,toName:r.fromName,status:'approved',ts:now,appTs:now,fl:2,swapOf:id})}
  rebuild();draw();toast(ok?(r.offer?`Swap confirmed with ${r.fromName}`:`${r.fromName} has been told. ${r.t} is marked as lent`):'Request declined')}
-function retR(id){const r=(DB.requests||{})[id];if(!r)return;dbSet('requests/'+id,{...r,status:'returned'});rebuild();draw();toast('Marked as returned. It’s back on your shelf')}
 function extendR(id){const r=(DB.requests||{})[id];if(!r)return;dbSet(`requests/${id}/ext`,(r.ext||0)+7);rebuild();draw();toast('Extended by a week. '+r.toName+' has been told.')}
 function readL(id){const r=(DB.requests||{})[id];if(r)markRead(r.t,r.a,r.c)}
 function markRead(t,a,c){const k=key(t),has=isRead(t);dbSet(`users/${me.id}/read/${k}`,has?null:{t,a:a||'',c:c||'',ts:Date.now()});rebuild();draw();toast(has?'Removed from your read list':'Marked as read. It counts toward your leaderboard rank')}
@@ -413,18 +423,17 @@ function tItems(){const out=[];thoughtsArr().forEach(t=>{
 function saveTSeen(){ls.set('ss_ts_'+me.id,JSON.stringify([...tseen].slice(-300)))}
 function activity(){
  const R=Object.values(DB.requests||{}).sort((a,b)=>b.ts-a.ts),U=DB.users||{};
- const pend=R.filter(r=>r.to===me.id&&r.status==='pending'),outs=R.filter(r=>r.from===me.id&&r.status!=='returned').slice(0,8),loans=R.filter(r=>r.from===me.id&&r.status==='approved'),lent=lib.filter(b=>b.lent);
+ const pend=R.filter(r=>r.to===me.id&&r.status==='pending'),outs=R.filter(r=>r.from===me.id&&['pending','declined','cancelled'].includes(r.status)).slice(0,6);
  const items=tItems(),nNew=items.filter(i=>i.fresh).length;
  const head=`<div class="top"><h1>Activity</h1></div><div class="seg"><button class="${asec==='share'?'on':''}" onclick="asec='share';draw()">Sharing${pend.length?`<b class="nb">${pend.length}</b>`:''}</button><button class="${asec==='th'?'on':''}" onclick="asec='th';draw()">Thoughtstream${nNew&&asec!=='th'?`<b class="nb">${nNew}</b>`:''}</button></div>`;
  if(asec==='th'){
   const h=items.length?items.map(i=>`<div class="card"><div class="item"><div style="flex:1"><b style="font-weight:500">${esc(i.text)}</b></div>${i.fresh?'<span class="st ok">New</span>':''}</div>${i.prev?`<p class="q" style="font-size:14px">“${esc(i.prev)}”</p>`:''}<button class="btn ghost" onclick="seeT('${i.tid}',${i.kind==='rp'})">${i.kind==='rp'?'See reply':'See thought'}</button></div>`).join(''):`<div class="card empty"><b class="serif" style="font-size:18px">Nothing yet</b><p>When a neighbor shares a thought on a book you lent, or replies to one of yours, it shows up here.</p></div>`;
   if(tseen){items.forEach(i=>tseen.add(i.key));saveTSeen()}return head+h}
- const rq=pend.map(r=>{const su=U[r.from]||{};return `<div class="reqc" id="rq-${esc(r.id)}"><div class="ph"><div class="pa" style="--c:${esc(r.c||'#6B4226')}">${esc((r.fromName||'?')[0])}</div><div><b>${esc(r.fromName)} wants to borrow</b><small>${esc(su.unit||(su.loc&&su.loc.city)||'Nearby')} · ${esc(fmtD(dist(myLoc(),su.loc)))}</small></div><span class="tag" style="background:var(--acc);color:var(--accink)">${r.offer?'Swap offer':'New request'}</span></div><div class="item">${cv(r)}<div><b class="serif" style="font-size:18px">${esc(r.t)}</b><small>${esc(r.a||'')}</small>${r.offer?`<small>Offers ${esc(r.offer.t)} in exchange</small>`:'<small>Usually lent for two weeks</small>'}</div>${bookIco()}</div><div class="two"><button class="btn acc" onclick="apR('${r.id}',1)">Approve</button><button class="btn ghost" onclick="apR('${r.id}',0)">Decline</button></div></div>`}).join('');
+ const rq=pend.map(r=>{const su=U[r.from]||{};return `<div class="reqc" id="rq-${esc(r.id)}"><div class="ph"><div class="pa" style="--c:${esc(r.c||'#6B4226')}">${esc((r.fromName||'?')[0])}</div><div><b>${esc(r.fromName)} wants to borrow</b><small>${esc(su.unit||(su.loc&&su.loc.city)||'Nearby')} · ${esc(fmtD(dist(myLoc(),su.loc)))}</small><small>${esc(repChip(r.from))}</small></div><span class="tag" style="background:var(--acc);color:var(--accink)">${r.offer?'Swap offer':'New request'}</span></div><div class="item">${cv(r)}<div><b class="serif" style="font-size:18px">${esc(r.t)}</b><small>${esc(r.a||'')}</small>${r.offer?`<small>Offers ${esc(r.offer.t)} in exchange</small>`:'<small>Usually lent for two weeks</small>'}</div>${bookIco()}</div><div class="two"><button class="btn acc" onclick="apR('${r.id}',1)">Approve</button><button class="btn ghost" onclick="apR('${r.id}',0)">Decline</button></div></div>`}).join('');
  const ot=outs.map(r=>`<div class="card"><div class="item"><div style="flex:1"><b style="font-weight:500">${esc(r.swapOf?`Swap: you’re borrowing ${r.t} from ${r.toName}`:r.offer?`Swap proposed: ${r.offer.t} for ${r.t}`:`You asked ${r.toName} to borrow ${r.t}`)}</b></div><span class="st ${r.status==='approved'?'ok':''}">${STL[r.status]||esc(r.status)}</span></div></div>`).join('');
- const bo=loans.map(r=>{const d=daysLeft(r);return `<div class="card"><div class="item">${cv(r)}<div><b>${esc(r.t)}</b><small>From ${esc(r.toName)}</small><div class="bar2 ${d<=3?'lo':''}"><i style="width:${Math.min(100,d/(14+(r.ext||0))*100)}%"></i></div><small><b>${dl(d)} left</b>${d<=3?' · due soon':''}</small></div></div><div class="two" style="margin-top:8px"><button class="chip" onclick="extendR('${r.id}')">Extend by a week</button><button class="chip ${isRead(r.t)?'on':''}" onclick="readL('${r.id}')">${isRead(r.t)?'Read ✓':'Finished reading'}</button></div></div>`}).join('');
- const lo=lent.map(b=>`<div class="card item">${cv(b)}<div><b>${esc(b.t)}</b><small>With ${esc(b.lent)}</small><span class="tag">Returns in ${dl(b.due||7)}</span>${b.rid?`<button class="chip" style="margin-left:6px" onclick="retR('${b.rid}')">Mark returned</button>`:''}</div></div>`).join('');
+ const bo=loanSections(R),lo='';
  const none=!rq&&!ot&&!bo&&!lo;
- return head+(none?`<div class="card empty"><b class="serif" style="font-size:18px">No activity yet</b><p>Find a book on Discover and send your first request.</p><button class="btn acc" onclick="go('d')">Browse books</button></div>`:'')+(rq?`<h3 class="sec" style="margin-top:4px">Requests for you</h3>`+rq:'')+(ot?`<h3 class="sec">Your requests</h3>`+ot:'')+(bo?`<h3 class="sec">Borrowed by you</h3>`+bo:'')+(lo?`<h3 class="sec">Lent out</h3>`+lo:'')}
+ return head+(none?`<div class="card empty"><b class="serif" style="font-size:18px">No activity yet</b><p>Find a book on Discover and send your first request.</p><button class="btn acc" onclick="go('d')">Browse books</button></div>`:'')+(rq?`<h3 class="sec" style="margin-top:4px">Requests for you</h3>`+rq:'')+(ot?`<h3 class="sec">Your requests</h3>`+ot:'')+bo}
 
 /* ---------- add a book: live barcode scanner + book lookup ---------- */
 const SWATCH=['#8C4A3C','#5B4B3A','#7A8541','#6A4A5A','#B07A2A','#4E6B3E','#7A4B2A','#8A5A44'];
@@ -771,7 +780,7 @@ function progressView(){const s=streakOf(me.id),st=stats(me.id),lv=levelOf(s.pag
  const cell=(v,l)=>`<div class="card sc2"><b>${v}</b><small>${l}</small></div>`;
  return `<div class="grid2">${cell(s.pages.toLocaleString(),'Total pages')}${cell(st.read,'Books finished')}${cell(s.cur,'Current streak')}${cell(s.best,'Longest streak')}${cell(s.days,'Days read')}${cell(s.days?Math.round(s.pages/s.days):0,'Avg pages / day')}${cell(wk,'Pages this week')}${cell(st.lent,'Books lent')}</div>
  ${top?`<p style="color:var(--mut);font-size:13px;margin:0 0 12px">Most read: <b>${esc(top[0])}</b> (${top[1].toLocaleString()} pages)</p>`:''}
- <h3 style="margin:6px 0 8px">Badges <small style="color:var(--mut);font-weight:400">${got} of ${bd.length}</small></h3><div class="bdg">${bd.map(b=>`<div class="${b[2]?'on':''}"><i>${b[0]}</i><small>${b[1]}</small></div>`).join('')}</div>`}
+ <h3 style="margin:6px 0 8px">Badges <small style="color:var(--mut);font-weight:400">${got} of ${bd.length}</small></h3><div class="bdg">${bd.map(b=>`<div class="${b[2]?'on':''}"><i>${b[0]}</i><small>${b[1]}</small></div>`).join('')}</div>`+recordHtml()}
 
 /* ---------- shelf: 3-up grid + search ---------- */
 let shq='',shSel=-1;
@@ -796,13 +805,160 @@ function discGrid(){const q=dq.trim().toLowerCase(),inF=b=>filt==='all'||(filt==
 function dSearch(v){dq=v;const g=$('dgrid');if(g)g.innerHTML=discGrid()}
 function wantFromSearch(){const v=dq.replace(/[<>&"`\\$]/g,'').trim().slice(0,60);if(!v||inWant(v))return;dbSet(`users/${me.id}/want/${key(v)}`,v);rebuild();const g=$('dgrid');if(g)g.innerHTML=discGrid();toast('Added to your want to read list')}
 
+/* ---------- loans: private messages, two-sided handoff and return, meetups, ratings, policy ---------- */
+const PLACES=['Building lobby','Mailroom','Front entrance','Library','Coffee shop','Park entrance'];
+const GUIDE=[
+ ['Return it as you got it','Bring the book back in the same condition, within 2 weeks. Need longer? Extend the loan or just message the owner.'],
+ ['Damage happens: tell the owner','If something goes wrong, use “Report a problem” right away. The owner decides what is fair, such as a replacement copy or forgiving it.'],
+ ['If a book is lost','Offer a replacement copy or something of similar value. The owner can mark it lost, which shows on the borrower’s record.'],
+ ['Meet somewhere safe','Hand off in a public place or your building lobby. Keep addresses and apartment numbers out of chat until you’re comfortable.'],
+ ['Both of you confirm','Pickups and returns only count when both of you confirm them, so nobody is left guessing.'],
+ ['We connect neighbors','ShelfShare doesn’t handle money or settle disputes. Be kind, and you’ll keep your good record.']];
+let thr=null,tmsgs=[],thrTimer=0,rseen=null,rsig=null,askFn=null,rateSkip=new Set(),tHtml='',mHtml='',cleaned=new Set();
+const reqOf=id=>(DB.requests||{})[id];
+const REQS=()=>Object.values(DB.requests||{});
+
+/* ----- loan state (derived from the request's fields) ----- */
+function closedR(r){return ['declined','returned','cancelled','lost'].includes(r.status)||!!r.cxB||!!(r.rtL&&r.rtB)}
+function isAct(r){return r.status==='approved'&&!closedR(r)}
+function picked(r){return r.fl!==2||!!(r.pkL&&r.pkB)}
+function pickTs(r){return r.fl!==2?(r.appTs||r.ts||Date.now()):Math.max(r.pkL||0,r.pkB||0)}
+function dueIn(r){return 14+(r.ext||0)-Math.floor((Date.now()-pickTs(r))/864e5)}
+function phase(r){if(r.status==='pending')return 'pending';if(r.status==='declined')return 'declined';if(r.status==='lost')return 'lost';
+ if(r.cxB||r.status==='cancelled')return 'cancelled';if((r.rtL&&r.rtB)||r.status==='returned')return 'done';if(r.status!=='approved')return 'other';
+ if(!picked(r))return 'pickup';if(r.rtL||r.rtB)return 'returning';return 'out'}
+function needs(r){if(!isAct(r))return 0;const L=r.to===me.id,B=r.from===me.id,p=phase(r);
+ if(p==='pickup')return (L&&!r.pkL)||(B&&!r.pkB)?1:0;if(p==='returning')return (L&&!r.rtL)||(B&&!r.rtB)?1:0;return 0}
+function rsGet(){if(rseen&&rseen.u===me.id)return rseen.m;let m={};try{m=JSON.parse(ls.get('ss_rs_'+me.id)||'{}')}catch(e){}rseen={u:me.id,m};return m}
+function rsSet(id,ts){const m=rsGet();if((m[id]||0)>=ts)return;m[id]=ts;ls.set('ss_rs_'+me.id,JSON.stringify(m))}
+function unread(r){return r.lm&&r.lm.by!==me.id&&r.lm.ts>(rsGet()[r.id]||0)?1:0}
+function actionCount(){return REQS().filter(r=>r.to===me.id||r.from===me.id).reduce((n,r)=>n+needs(r)+unread(r),0)}
+
+/* ----- reputation ----- */
+function rep(id){let n=0,sum=0,loans=0,late=0,tot=0,lost=0;
+ REQS().forEach(r=>{const p=phase(r);if(p==='lost'&&r.from===id)lost++;if(p!=='done'||(r.to!==id&&r.from!==id))return;loans++;
+  if(r.to===id&&r.rtgB){n++;sum+=r.rtgB.s}
+  if(r.from===id){if(r.rtgL){n++;sum+=r.rtgL.s}if(r.rtB){tot++;if(r.rtB>pickTs(r)+(14+(r.ext||0))*864e5+864e5)late++}}});
+ return {n,avg:n?sum/n:0,loans,late,tot,lost,ontime:tot?Math.round((tot-late)/tot*100):null}}
+function repChip(id){const p=rep(id);if(!p.loans&&!p.lost)return 'New to lending';
+ return `★ ${p.n?p.avg.toFixed(1):'–'} · ${p.loans} loan${p.loans===1?'':'s'}${p.lost?` · ${p.lost} lost`:''}`}
+
+/* ----- sheets ----- */
+function sheet(html){closeSheet();const d=document.createElement('div');d.className='scrim';d.id='shs';d.onclick=closeSheet;d.innerHTML=`<div class="sheet" role="dialog" onclick="event.stopPropagation()">${html}</div>`;$('app').appendChild(d);const i=d.querySelector('input,textarea');if(i&&i.type!=='checkbox')setTimeout(()=>i.focus(),50)}
+function closeSheet(){const d=$('shs');if(d)d.remove()}
+function ask(t,b,ok,fn){askFn=fn;sheet(`<b class="serif" style="font-size:18px">${esc(t)}</b><p style="color:var(--mut);font-size:14px;margin:8px 0 14px">${esc(b)}</p><button class="btn acc" onclick="closeSheet();askFn&&askFn()">${esc(ok)}</button><button class="btn ghost" onclick="closeSheet()">Not yet</button>`)}
+function guideHtml(){return `<ul class="guide">${GUIDE.map(([h,t])=>`<li><b>${esc(h)}</b><span>${esc(t)}</span></li>`).join('')}</ul>`}
+function guideSheet(){sheet(`<b class="serif" style="font-size:19px">Lending guidelines</b><p style="color:var(--mut);font-size:13px;margin:4px 0 8px">How ShelfShare loans work, including lost and damaged books.</p>${guideHtml()}<button class="btn acc" onclick="closeSheet()">Got it</button>`)}
+function policyGate(fn){if(ls.get('ss_policy_ok')){fn();return}askFn=fn;sheet(`<b class="serif" style="font-size:19px">Before you borrow</b><p style="color:var(--mut);font-size:13px;margin:4px 0 8px">A few ground rules keep sharing friendly.</p>${guideHtml()}<button class="btn acc" onclick="ls.set('ss_policy_ok','1');closeSheet();askFn&&askFn()">I agree, send request</button><button class="btn ghost" onclick="closeSheet()">Cancel</button>`)}
+
+/* ----- confirm steps (both people must confirm) ----- */
+function F(id,f,v){return dbSet(`requests/${id}/${f}`,v)}
+function pickAct(id){const r=reqOf(id);if(!r)return;const L=r.to===me.id,o=L?r.fromName:r.toName;
+ ask(L?'Confirm the handoff':'Confirm pickup',L?`Did you hand “${r.t}” to ${o}? The 2 week clock starts once you both confirm.`:`Do you have “${r.t}” from ${o}? The 2 week clock starts once you both confirm.`,L?'Yes, I handed it over':'Yes, I have it',
+  async()=>{await F(id,L?'pkL':'pkB',Date.now());rebuild();draw();toast('Confirmed. We’ll let '+o+' know to confirm too.')})}
+function retAct(id){const r=reqOf(id);if(!r)return;const L=r.to===me.id,o=L?r.fromName:r.toName;
+ ask(L?'Confirm it’s back':'Confirm your return',L?`Do you have “${r.t}” back from ${o}?`:`Have you given “${r.t}” back to ${o}?`,L?'Yes, I got it back':'Yes, I returned it',
+  async()=>{await F(id,L?'rtL':'rtB',Date.now());rebuild();draw();toast(r.rtL||r.rtB?'Loan complete. Thanks for sharing!':'Confirmed. Waiting for '+o+' to confirm too.')})}
+function cancelAct(id){const r=reqOf(id);if(!r)return;const L=r.to===me.id;
+ ask('Cancel this loan?',L?`“${r.t}” goes back on your shelf and ${r.fromName} is told.`:`You won’t borrow “${r.t}”. It goes back on ${r.toName}’s shelf.`,'Yes, cancel',
+  async()=>{await (L?F(id,'status','cancelled'):F(id,'cxB',Date.now()));rebuild();draw();toast('Loan cancelled')})}
+function lostAct(id){const r=reqOf(id);if(!r)return;
+ ask('Mark as lost?',`This closes the loan and shows on ${r.fromName}’s record. Try talking it over first: a replacement copy is a common fix.`,'Mark as lost',
+  async()=>{await F(id,'status','lost');rebuild();draw();toast('Marked as lost')})}
+function loanCleanup(){REQS().forEach(r=>{if(r.to!==me.id||r.status!=='approved'||cleaned.has(r.id))return;
+ if(r.rtL&&r.rtB){cleaned.add(r.id);F(r.id,'status','returned')}else if(r.cxB){cleaned.add(r.id);F(r.id,'status','cancelled')}})}
+
+/* ----- ratings ----- */
+function rate(id,s){const r=reqOf(id);if(!r)return;const L=r.to===me.id;dbSet(`requests/${id}/${L?'rtgL':'rtgB'}`,{s});rebuild();draw();toast('Thanks for the rating')}
+function skipRate(id){rateSkip.add(id);draw()}
+function toRate(){const cut=Date.now()-30*864e5;return REQS().filter(r=>phase(r)==='done'&&(r.to===me.id||r.from===me.id)&&!rateSkip.has(r.id)&&!(r.to===me.id?r.rtgL:r.rtgB)&&Math.max(r.rtL||0,r.rtB||0,r.appTs||0)>cut)}
+function rateCard(r){const L=r.to===me.id,o=L?r.fromName:r.toName;
+ return `<div class="card"><b style="font-weight:500">How was ${L?`lending “${esc(r.t)}” to`:`borrowing “${esc(r.t)}” from`} ${esc(o)}?</b><div class="stars">${[1,2,3,4,5].map(n=>`<button aria-label="${n} star${n>1?'s':''}" onclick="rate('${r.id}',${n})">★</button>`).join('')}</div><button class="back" style="margin:2px 0 0;font-size:13px" onclick="skipRate('${r.id}')">Skip</button></div>`}
+
+/* ----- problem report ----- */
+let probK='';
+function reportSheet(id){probK='';const r=reqOf(id);if(!r)return;
+ sheet(`<b class="serif" style="font-size:19px">Report a problem</b><p style="color:var(--mut);font-size:13px;margin:4px 0 10px">${esc(r.t)}. We’ll tell ${esc(r.to===me.id?r.fromName:r.toName)} in your chat. Most problems are sorted out by talking.</p>
+ <div class="row" id="pk">${[['damaged','Damaged'],['lost','Lost'],['late','Late'],['other','Other']].map(([k,n])=>`<button class="chip" data-k="${k}" onclick="probK='${k}';document.querySelectorAll('#pk .chip').forEach(b=>b.classList.toggle('on',b.dataset.k==='${k}'))">${n}</button>`).join('')}</div>
+ <textarea id="pn" class="ri" maxlength="300" rows="3" placeholder="What happened? (optional)" style="width:100%;margin:10px 0;border-radius:14px;padding:10px"></textarea>
+ <button class="btn acc" onclick="sendProb('${id}')">Send report</button><button class="btn ghost" onclick="guideSheet()">Read the guidelines</button>`)}
+async function sendProb(id){const r=reqOf(id);if(!r)return;if(!probK){toast('Pick what went wrong');return}
+ const n=(($('pn')||{}).value||'').replace(/[<>&"`\\$]/g,'').trim().slice(0,300),ts=Date.now(),lab={damaged:'Damaged',lost:'Lost',late:'Late',other:'Other'}[probK];
+ closeSheet();await F(id,'prob',n?{k:probK,n,ts,by:me.id}:{k:probK,ts,by:me.id});await postMsg(id,`Reported a problem (${lab})${n?': '+n:''}`);rebuild();draw();toast('Reported. Check your chat to sort it out.')}
+
+/* ----- messages (private per request, stored at msgs/<id>) ----- */
+async function postMsg(id,txt,k){const ts=Date.now(),mid='m'+uid(),m={id:mid,uid:me.id,who:me.name,txt,ts};if(k)m.k=k;
+ try{const res=await fb('PUT',`${BASE}/msgs/${id}/${mid}.json`,JSON.stringify(m));if(!res.ok)throw 0}catch(e){toast('Couldn’t send that. Check your connection and try again.');return false}
+ if(id===thr){tmsgs.push(m)}F(id,'lm',{ts,by:me.id});rsSet(id,ts);return true}
+async function loadThr(id){const r=await fb('GET',`${BASE}/msgs/${id}.json`);if(!r.ok)throw new Error('http '+r.status);return Object.values((await r.json())||{}).sort((a,b)=>a.ts-b.ts)}
+async function pollThr(){if(tab!=='thr'||!thr)return;const id=thr;try{const m=await loadThr(id);if(tab!=='thr'||thr!==id)return;if(JSON.stringify(m.map(x=>x.id))!==JSON.stringify(tmsgs.map(x=>x.id))||!tmsgs.length)tmsgs=m;thrRefresh()}catch(e){}}
+function openThr(id){thr=id;tab='thr';tmsgs=[];tHtml='';mHtml='';draw();pollThr();clearInterval(thrTimer);thrTimer=setInterval(pollThr,2500)}
+function meetHtml(r){const m=r.meet;if(!m)return `<div class="meet"><small>No meetup planned yet</small><button class="chip" onclick="meetSheet('${r.id}')">Suggest a time and place</button></div>`;
+ const byMe=m.by===me.id,ok=r.meetOk===m.ts,who=byMe?'You':esc(r.to===me.id?r.fromName:r.toName);
+ return `<div class="meet ${ok?'ok':''}"><div style="flex:1;min-width:0"><b><span class="pin">${ic('pin')}</span> ${esc(m.pl)}${m.at?' · '+esc(m.at):''}</b><small>${who} suggested this${ok?' · confirmed ✓':byMe?' · waiting for a reply':''}</small></div>${!ok&&!byMe?`<button class="chip on" onclick="meetOk('${r.id}')">Confirm</button>`:''}<button class="chip" onclick="meetSheet('${r.id}')">${ok?'Change':'Suggest other'}</button></div>`}
+function tmsgsHtml(){return `<div class="sys"><b>Stay safe</b> Meet in a public place or your building lobby, and keep your address out of chat. <button class="lnk" onclick="guideSheet()">Guidelines</button></div>`+tmsgs.map(m=>`<div class="msg ${m.uid===me.id?'me':''}"><small>${m.uid===me.id?'You':esc(m.who)} · ${ago(m.ts)}</small><div class="bub">${m.k==='meet'?'<span class="pin">'+ic('pin')+'</span> ':''}${esc(m.txt)}</div></div>`).join('')+(tmsgs.length?'':`<p class="cdesc">Say hello and sort out when and where to meet.</p>`)}
+function thrView(){const r=reqOf(thr);if(!r){clearInterval(thrTimer);tab='a';return activity()}const L=r.to===me.id,o=L?r.fromName:r.toName,ou=L?r.from:r.to;
+ return `<div class="chat"><div class="hd"><button class="back" style="margin:0" onclick="go('a')">‹ Activity</button><div style="flex:1;min-width:0"><b class="serif" style="font-size:17px;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(o)}</b><small style="color:var(--mut)">${esc(r.t)} · ${esc(repChip(ou))}</small></div>${isAct(r)?`<button class="chip" onclick="reportSheet('${r.id}')">Report</button>`:''}</div>
+ <div id="thead">${meetHtml(r)}</div><div id="tmsgs">${tmsgsHtml()}</div>
+ <div class="cmp"><input class="ri" id="ti" maxlength="500" aria-label="Message" placeholder="Message ${esc(o)}" autocomplete="off" onkeydown="if(event.key==='Enter')sendThr()"><button class="chip on" onclick="sendThr()">Send</button></div></div>`}
+function thrRefresh(){const r=reqOf(thr);if(!r||tab!=='thr')return;const h=$('thead'),m=$('tmsgs');
+ if(h){const x=meetHtml(r);if(x!==tHtml){tHtml=x;h.innerHTML=x}}
+ if(m){const x=tmsgsHtml();if(x!==mHtml){const end=m.scrollHeight-m.scrollTop-m.clientHeight<80||!mHtml;mHtml=x;m.innerHTML=x;if(end)m.scrollTop=m.scrollHeight}}
+ const last=Math.max(r.lm?r.lm.ts:0,tmsgs.length?tmsgs[tmsgs.length-1].ts:0);if(last)rsSet(r.id,last)}
+async function sendThr(){const i=$('ti');if(!i||!thr)return;const v=i.value.trim().slice(0,500);if(!v)return;i.value='';await postMsg(thr,v);thrRefresh();i.focus()}
+function meetSheet(id){const r=reqOf(id);if(!r)return;
+ sheet(`<b class="serif" style="font-size:19px">Suggest a meetup</b><p style="color:var(--mut);font-size:13px;margin:4px 0 8px">Public, well-lit spots are best.</p>
+ <div class="row">${PLACES.map(p=>`<button class="chip" onclick="document.getElementById('mp').value='${p}'">${p}</button>`).join('')}</div>
+ <input id="mp" class="ri" maxlength="60" placeholder="Where? e.g. Building lobby" style="width:100%;margin:10px 0 8px;border-radius:14px;padding:10px"><input id="ma" class="ri" maxlength="40" placeholder="When? e.g. Thu 6pm" style="width:100%;margin:0 0 12px;border-radius:14px;padding:10px">
+ <button class="btn acc" onclick="sendMeet('${id}')">Suggest</button><button class="btn ghost" onclick="closeSheet()">Cancel</button>`)}
+async function sendMeet(id){const pl=(($('mp')||{}).value||'').replace(/[<>&"`\\$]/g,'').trim().slice(0,60),at=(($('ma')||{}).value||'').replace(/[<>&"`\\$]/g,'').trim().slice(0,40);
+ if(!pl){toast('Pick or type a place');return}closeSheet();const ts=Date.now();await F(id,'meet',at?{pl,at,by:me.id,ts}:{pl,by:me.id,ts});await postMsg(id,`Suggested a meetup: ${pl}${at?', '+at:''}`,'meet');rebuild();if(tab==='thr'){thrRefresh()}else draw()}
+async function meetOk(id){const r=reqOf(id);if(!r||!r.meet)return;await F(id,'meetOk',r.meet.ts);await postMsg(id,'Confirmed the meetup ✓');thrRefresh()}
+
+/* ----- activity: loans ----- */
+function stepsHtml(r){const p=phase(r),pk=picked(r),dn=p==='done';
+ return `<div class="steps"><span class="on">Approved</span><span class="${pk?'on':''}">Picked up</span><span class="${dn?'on':''}">Returned</span></div>`}
+function loanCard(r){const L=r.to===me.id,ph=phase(r),o=L?r.fromName:r.toName,ou=L?r.from:r.to,d=dueIn(r),need=needs(r),un=unread(r),
+ mine=ph==='pickup'?(L?r.pkL:r.pkB):ph==='returning'?(L?r.rtL:r.rtB):0;
+ let line='',primary='';
+ if(ph==='pickup'){line=mine?`You confirmed. Waiting for ${esc(o)} to confirm.`:(L?r.pkB:r.pkL)?`${esc(o)} confirmed. Please confirm too.`:`Arrange a pickup with ${esc(o)}, then each confirm it.`;if(!mine)primary=`<button class="btn acc" onclick="pickAct('${r.id}')">${L?'I handed it over':'I got the book'}</button>`}
+ else if(ph==='out'){line=d>0?`<b>${dl(d)} left</b>${d<=3?' · due soon':''}`:`<b style="color:#a3392b">Overdue by ${dl(-d||1)}</b>`;primary=`<button class="btn acc" onclick="retAct('${r.id}')">${L?'I got it back':'I returned it'}</button>`}
+ else if(ph==='returning'){line=mine?`You confirmed the return. Waiting for ${esc(o)}.`:`${esc(o)} confirmed the return. Please confirm too.`;if(!mine)primary=`<button class="btn acc" onclick="retAct('${r.id}')">${L?'I got it back':'I returned it'}</button>`}
+ const total=14+(r.ext||0);
+ return `<div class="card loan ${need?'act':''}" id="ln-${esc(r.id)}"><div class="item">${cv(r)}<div style="flex:1;min-width:0"><b>${esc(r.t)}</b><small>${L?'Lent to':'From'} ${esc(o)} · ${esc(repChip(ou))}</small><small>${line}</small>${ph==='out'?`<div class="bar2 ${d<=3?'lo':''}"><i style="width:${Math.max(0,Math.min(100,d/total*100))}%"></i></div>`:''}</div></div>
+ ${stepsHtml(r)}${r.meet&&ph==='pickup'?`<small class="mt"><span class="pin">${ic('pin')}</span> ${esc(r.meet.pl)}${r.meet.at?' · '+esc(r.meet.at):''}${r.meetOk===r.meet.ts?' ✓':''}</small>`:''}
+ ${r.prob?`<span class="tag off" style="margin-top:8px">Problem reported: ${esc(r.prob.k)}</span>`:''}${primary}
+ <div class="row" style="margin:8px 0 0"><button class="chip" onclick="openThr('${r.id}')">Message${un?'<b class="dotu"></b>':''}</button>${ph==='out'&&!L?`<button class="chip" onclick="extendR('${r.id}')">Extend a week</button>`:''}${ph==='pickup'?`<button class="chip" onclick="cancelAct('${r.id}')">Cancel</button>`:''}${(ph==='out'||ph==='returning')&&!r.prob?`<button class="chip" onclick="reportSheet('${r.id}')">Report a problem</button>`:''}${ph==='out'&&L?`<button class="chip" onclick="lostAct('${r.id}')">Mark lost</button>`:''}</div></div>`}
+function loanSections(R){const act=R.filter(isAct),bor=act.filter(r=>r.from===me.id),len=act.filter(r=>r.to===me.id),rt=toRate();
+ return (rt.length?`<h3 class="sec">Rate your loans</h3>`+rt.map(rateCard).join(''):'')+(bor.length?`<h3 class="sec">Borrowed by you</h3>`+bor.map(loanCard).join(''):'')+(len.length?`<h3 class="sec">Lent out</h3>`+len.map(loanCard).join(''):'')}
+
+/* ----- lending record (shown in Progress) ----- */
+function recordHtml(){const id=me.id,p=rep(id),R=REQS().filter(r=>(r.to===id||r.from===id)&&['done','lost'].includes(phase(r))).sort((a,b)=>Math.max(b.rtL||0,b.rtB||0,b.appTs||0)-Math.max(a.rtL||0,a.rtB||0,a.appTs||0)).slice(0,15);
+ const lent=R.filter(r=>r.to===id&&phase(r)==='done').length,bor=R.filter(r=>r.from===id&&phase(r)==='done').length;
+ const cell=(v,l)=>`<div class="card sc2"><b>${v}</b><small>${l}</small></div>`;
+ return `<h3 style="margin:16px 0 8px">Lending record</h3><div class="grid2">${cell(p.n?p.avg.toFixed(1)+' ★':'–','Average rating')}${cell(p.loans,'Loans completed')}${cell(p.ontime==null?'–':p.ontime+'%','Returned on time')}${cell(p.lost,'Books lost')}</div>`+
+ (R.length?R.map(r=>{const L=r.to===id,o=L?r.fromName:r.toName,mine=L?r.rtgL:r.rtgB,theirs=L?r.rtgB:r.rtgL,when=Math.max(r.rtL||0,r.rtB||0,r.appTs||0);
+  return `<div class="card item hist">${cv(r)}<div style="flex:1;min-width:0"><b>${esc(r.t)}</b><small>${L?'Lent to':'Borrowed from'} ${esc(o)}${when?' · '+new Date(when).toLocaleDateString(undefined,{month:'short',day:'numeric'}):''}</small><small>${phase(r)==='lost'?'<b style="color:#a3392b">Marked lost</b>':'Returned'}${mine?` · you gave ★${mine.s}`:''}${theirs?` · got ★${theirs.s}`:''}</small></div></div>`}).join(''):`<p style="color:var(--mut);font-size:14px">Finished loans show up here, with the ratings you gave and received.</p>`)
+ +`<button class="btn ghost" style="margin-top:10px" onclick="guideSheet()">Lending guidelines</button>`}
+
+/* ----- notifications about loan changes ----- */
+function loanNote(){const R=REQS().filter(r=>r.to===me.id||r.from===me.id),cur={};
+ R.forEach(r=>cur[r.id]={pkL:r.pkL||0,pkB:r.pkB||0,rtL:r.rtL||0,rtB:r.rtB||0,prob:r.prob?1:0,meet:r.meet?r.meet.ts:0,lm:r.lm?r.lm.ts:0});
+ if(rsig)R.forEach(r=>{const o=rsig[r.id],c=cur[r.id];if(!o)return;const L=r.to===me.id,them=L?r.fromName:r.toName,theirPk=L?'pkB':'pkL',theirRt=L?'rtB':'rtL';
+  if(c.lm>o.lm&&r.lm&&r.lm.by!==me.id){if(!(tab==='thr'&&thr===r.id))toast(`${them}: new message about ${r.t}`)}
+  else if(c[theirPk]&&!o[theirPk])toast(`${them} confirmed the handoff of ${r.t}`);
+  else if(c[theirRt]&&!o[theirRt])toast(`${them} confirmed the return of ${r.t}`);
+  else if(c.prob&&!o.prob&&r.prob.by!==me.id)toast(`${them} reported a problem with ${r.t}`);
+  else if(c.meet&&c.meet!==o.meet&&r.meet.by!==me.id)toast(`${them} suggested a meetup for ${r.t}`)});
+ rsig=cur}
+
 /* ---------- notifications ---------- */
 function notify(){const R=Object.values(DB.requests||{}),cur={};R.forEach(r=>{if(r.to===me.id||r.from===me.id)cur[r.id]=r.status});
  if(seen)R.forEach(r=>{if(r.to===me.id&&!(r.id in seen)){if(r.status==='pending')toast(`${r.fromName} wants to borrow ${r.t}`)}
-  else if(r.from===me.id&&seen[r.id]&&seen[r.id]!==r.status&&r.status!=='returned'){upd++;toast(r.status==='approved'?`${r.toName} approved ${r.t}. Check Activity`:`${r.toName} declined ${r.t}`)}});
- seen=cur;
+  else if(r.from===me.id&&seen[r.id]&&seen[r.id]!==r.status&&(r.status==='approved'||r.status==='declined')){upd++;toast(r.status==='approved'?`${r.toName} approved ${r.t}. Check Activity`:`${r.toName} declined ${r.t}`)}});
+ seen=cur;loanNote();
  if(tnote)tItems().forEach(i=>{if(!tnote.has(i.key)){tnote.add(i.key);toast(i.text)}})}
-function badge(){const R=Object.values(DB.requests||{});let n=R.filter(r=>r.to===me.id&&r.status==='pending').length+upd;if(tseen)n+=tItems().filter(i=>i.fresh).length;return n}
+function badge(){const R=Object.values(DB.requests||{});let n=R.filter(r=>r.to===me.id&&r.status==='pending').length+upd;if(tseen)n+=tItems().filter(i=>i.fresh).length;n+=actionCount();return n}
 
 /* ---------- sign-up / login ---------- */
 function showLoc(){const e=$('locline');if(!e)return;
@@ -863,7 +1019,7 @@ async function afterLogin(){rebuild();
  if(!myLoc()){const l=LOC||await detectLoc();dbSet(`users/${me.id}/loc`,l)}
  if(!((DB.users||{})[me.id]||{}).ref)dbSet(`users/${me.id}/ref`,genRef(me.name,me.id,DB.users));
  rebuild();ensureClubs();
- let ts=[];try{ts=JSON.parse(ls.get('ss_ts_'+me.id)||'[]')}catch(e){}tseen=new Set(ts);tnote=new Set(tItems().map(i=>i.key));seen=null;upd=0;notify()}
+ let ts=[];try{ts=JSON.parse(ls.get('ss_ts_'+me.id)||'[]')}catch(e){}tseen=new Set(ts);tnote=new Set(tItems().map(i=>i.key));seen=null;rsig=null;thr=null;rseen=null;upd=0;notify()}
 function signOut(msg){ls.del('ss_auth');ls.del('ss_me');AU=null;me=null;DB={};last='';DBok=false;seen=null;tseen=null;tnote=null;tab='d';asec='share';csec='clubs';curClub=null;ropen=null;upd=0;amode='in';draw();if(typeof msg==='string')toast(msg)}
 
 /* ---------- sync ---------- */
@@ -872,16 +1028,18 @@ async function sync(force){if(pend||!AU)return;const w0=wver;let d;try{d=scrub(a
  const j=JSON.stringify(d);if(j===last&&!force)return;last=j;DB=d;if(!me)return;if(!(DB.users||{})[me.id]){signOut('Your profile was reset. Please log in again.');return}
  rebuild();notify();resolveCovers();
  const ae=document.activeElement,typing=ae&&/INPUT|TEXTAREA|SELECT/.test(ae.tagName);
+ loanCleanup();
+ if(tab==='thr'){thrRefresh();tabs();return}
  if(tab==='u'&&curClub){drawMsgs();tabs();return}
  if(['d','a','p','u'].includes(tab)&&!document.querySelector('.scrim,.scrim2')&&!typing&&!owlBusy)draw();else tabs()}
 
 /* ---------- shell ---------- */
 const TABS=[['d','Discover'],['f','Feed'],['s','Add'],['u','Community'],['p','Me']];
 function tabs(){const bar=$('bar');if(!me||tab==='plan'){$('tabs').innerHTML='';bar.style.display='none';return}const b=badge();
- bar.style.display=(tab==='u'&&curClub)?'none':'flex';
+ bar.style.display=((tab==='u'&&curClub)||tab==='thr')?'none':'flex';
  bar.innerHTML=`<span class="wm"><img src="icons/logo-256.png" width="34" height="31" alt="" onerror="this.remove()">ShelfShare</span><button class="bell ${tab==='a'?'on':''}" aria-label="Activity and notifications${b?', '+b+' new':''}" onclick="go('a')">${ic('a')}${b?`<b class="dot">${b}</b>`:''}</button>`;
  $('tabs').innerHTML=TABS.map(([k,n])=>k==='s'?`<button class="scan" onclick="go('s')"><span>${ic('s')}</span>${n}</button>`:`<button class="${tab===k||(tab==='detail'&&k==='d')||(tab==='post'&&k==='f')?'on':''}" onclick="go('${k}')">${ic(k)}${n}</button>`).join('')}
-const VIEWS={d:discover,detail,f:feed,post:compose,s:scan,u:community,a:activity,p:profile,plan:planView};
+const VIEWS={d:discover,detail,f:feed,post:compose,s:scan,u:community,a:activity,p:profile,plan:planView,thr:thrView};
 function draw(){const s=$('screen');s.className=(me&&tab==='u'&&curClub)?'flush':'';
  if(!me){camStop();s.innerHTML=onboard();$('tabs').innerHTML='';showLoc();detectLoc();return}
  s.innerHTML=VIEWS[tab]();tabs();if(tab==='u'&&curClub)afterChat();if(tab==='s'&&scanSt===0)setTimeout(camStart,0);else camStop()}

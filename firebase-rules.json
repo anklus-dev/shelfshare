@@ -1,122 +1,185 @@
 {
-  "rules": {
-    ".read": false,
-    ".write": false,
-    "ss": {
-      ".read": "auth!=null",
-      "users": {
-        "$uid": {
-          ".write": "auth!=null&&auth.uid===$uid",
-          "name": {
-            ".validate": "newData.isString()&&newData.val().length>0&&newData.val().length<=20"
-          },
-          "unit": {
-            ".validate": "newData.isString()&&newData.val().length<=30"
-          },
-          "books": {
-            "$bid": {
-              "t": {
-                ".validate": "newData.isString()&&newData.val().length>0&&newData.val().length<=60"
-              },
-              "a": {
-                ".validate": "newData.isString()&&newData.val().length<=40"
-              },
-              "cu": {
-                ".validate": "newData.isString()&&newData.val().length<=40000&&newData.val().matches(/^(https|data):.*/)"
-              }
-            }
-          },
-          "plan": {
-            ".validate": "newData.isString()&&newData.val().length<=12"
-          },
-          "ref": {
-            ".validate": "newData.isString()&&newData.val().length<=12"
-          },
-          "refBy": {
-            ".validate": "newData.isString()&&newData.val().length<=40"
-          },
-          "rl": {
-            "$d": {
-              ".validate": "$d.matches(/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/)",
-              "p": {
-                ".validate": "newData.isNumber()&&newData.val()>=1&&newData.val()<=20000"
-              },
-              "t": {
-                ".validate": "newData.isString()&&newData.val().length<=60"
-              },
-              "$other": {
-                ".validate": "false"
-              }
-            }
-          },
-          "trialStart": {
-            ".validate": "newData.isNumber()"
-          }
-        }
-      },
-      "requests": {
-        "$rid": {
-          ".write": "auth!=null&&(data.exists()?(data.child('from').val()===auth.uid||data.child('to').val()===auth.uid):newData.child('from').val()===auth.uid)",
-          ".validate": "newData.hasChildren(['from','to','bookId','status'])&&newData.child('from').val()!==newData.child('to').val()&&(data.exists()||newData.child('status').val()==='pending'||(newData.child('status').val()==='approved'&&newData.child('swapOf').exists()&&root.child('ss/requests').child(newData.child('swapOf').val()).child('to').val()===auth.uid))",
-          "from": {
-            ".validate": "!data.exists()||newData.val()===data.val()"
-          },
-          "to": {
-            ".validate": "!data.exists()||newData.val()===data.val()"
-          },
-          "bookId": {
-            ".validate": "!data.exists()||newData.val()===data.val()"
-          },
-          "status": {
-            ".validate": "newData.isString()&&(!data.exists()||newData.val()===data.val()||root.child('ss/requests').child($rid).child('to').val()===auth.uid)"
-          },
-          "ext": {
-            ".validate": "newData.isNumber()&&newData.val()<=70"
-          }
-        }
-      },
-      "thoughts": {
-        "$tid": {
-          ".write": "auth!=null&&(data.exists()?data.child('uid').val()===auth.uid:newData.child('uid').val()===auth.uid)",
-          ".validate": "newData.hasChildren(['uid','txt'])&&newData.child('who').val()===root.child('ss/users').child(auth.uid).child('name').val()&&newData.child('txt').val().length<=400",
-          "likes": {
-            "$u": {
-              ".write": "auth!=null&&auth.uid===$u"
-            }
-          },
-          "replies": {
-            "$r": {
-              ".write": "auth!=null&&(data.exists()?data.child('uid').val()===auth.uid:newData.child('uid').val()===auth.uid)",
-              ".validate": "newData.hasChildren(['uid','txt'])&&newData.child('who').val()===root.child('ss/users').child(auth.uid).child('name').val()&&newData.child('txt').val().length<=500"
-            }
-          }
-        }
-      },
-      "clubs": {
-        "$cid": {
-          ".write": "auth!=null&&!data.exists()",
-          ".validate": "newData.hasChildren(['name'])&&newData.child('name').val().length<=60",
-          "members": {
-            "$u": {
-              ".write": "auth!=null&&auth.uid===$u"
-            }
-          }
-        }
-      },
-      "clubmsgs": {
-        "$cid": {
-          "$mid": {
-            ".write": "auth!=null&&!data.exists()&&(newData.child('uid').val()===auth.uid||(newData.child('uid').val()==='sys'&&$mid==='m1'))",
-            ".validate": "newData.hasChildren(['uid','txt'])&&newData.child('txt').val().length<=300&&(newData.child('uid').val()==='sys'||newData.child('who').val()===root.child('ss/users').child(auth.uid).child('name').val())"
-          }
-        }
-      },
-      "covers": {
-        "$k": {
-          ".write": "auth!=null&&!data.exists()",
-          ".validate": "newData.isString()&&newData.val().length<=300&&newData.val().matches(/^https:.*/)"
-        }
+ "rules": {
+  ".read": false,
+  ".write": false,
+  "ss": {
+   ".read": "auth!=null",
+   "users": {
+    "$uid": {
+     ".write": "auth!=null&&auth.uid===$uid",
+     "name": {
+      ".validate": "newData.isString()&&newData.val().length>0&&newData.val().length<=20"
+     },
+     "unit": {
+      ".validate": "newData.isString()&&newData.val().length<=30"
+     },
+     "books": {
+      "$bid": {
+       "t": {
+        ".validate": "newData.isString()&&newData.val().length>0&&newData.val().length<=60"
+       },
+       "a": {
+        ".validate": "newData.isString()&&newData.val().length<=40"
+       },
+       "cu": {
+        ".validate": "newData.isString()&&newData.val().length<=40000&&newData.val().matches(/^(https|data):.*/)"
+       }
       }
+     },
+     "plan": {
+      ".validate": "newData.isString()&&newData.val().length<=12"
+     },
+     "ref": {
+      ".validate": "newData.isString()&&newData.val().length<=12"
+     },
+     "refBy": {
+      ".validate": "newData.isString()&&newData.val().length<=40"
+     },
+     "rl": {
+      "$d": {
+       ".validate": "$d.matches(/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/)",
+       "p": {
+        ".validate": "newData.isNumber()&&newData.val()>=1&&newData.val()<=20000"
+       },
+       "t": {
+        ".validate": "newData.isString()&&newData.val().length<=60"
+       },
+       "$other": {
+        ".validate": "false"
+       }
+      }
+     },
+     "trialStart": {
+      ".validate": "newData.isNumber()"
+     }
     }
+   },
+   "requests": {
+    "$rid": {
+     ".write": "auth!=null&&!data.exists()&&newData.child('from').val()===auth.uid",
+     ".validate": "newData.hasChildren(['from','to','bookId','status'])&&newData.child('from').val()!==newData.child('to').val()&&(data.exists()||newData.child('status').val()==='pending'||(newData.child('status').val()==='approved'&&newData.child('swapOf').exists()&&root.child('ss/requests').child(newData.child('swapOf').val()).child('to').val()===auth.uid))",
+     "from": {
+      ".validate": "!data.exists()||newData.val()===data.val()"
+     },
+     "to": {
+      ".validate": "!data.exists()||newData.val()===data.val()"
+     },
+     "bookId": {
+      ".validate": "!data.exists()||newData.val()===data.val()"
+     },
+     "status": {
+      ".write": "auth!=null&&root.child('ss/requests').child($rid).child('to').val()===auth.uid",
+      ".validate": "newData.isString()&&newData.val().matches(/^(pending|approved|declined|returned|cancelled|lost)$/)"
+     },
+     "appTs": {
+      ".write": "auth!=null&&root.child('ss/requests').child($rid).child('to').val()===auth.uid",
+      ".validate": "newData.isNumber()"
+     },
+     "fl": {
+      ".write": "auth!=null&&root.child('ss/requests').child($rid).child('to').val()===auth.uid&&!data.exists()",
+      ".validate": "newData.val()===2"
+     },
+     "ext": {
+      ".write": "auth!=null&&root.child('ss/requests').child($rid).child('from').val()===auth.uid",
+      ".validate": "newData.isNumber()&&newData.val()<=70&&(!data.exists()||newData.val()>=data.val())"
+     },
+     "pkL": {
+      ".write": "auth!=null&&root.child('ss/requests').child($rid).child('to').val()===auth.uid&&!data.exists()",
+      ".validate": "newData.isNumber()"
+     },
+     "rtL": {
+      ".write": "auth!=null&&root.child('ss/requests').child($rid).child('to').val()===auth.uid&&!data.exists()",
+      ".validate": "newData.isNumber()"
+     },
+     "pkB": {
+      ".write": "auth!=null&&root.child('ss/requests').child($rid).child('from').val()===auth.uid&&!data.exists()",
+      ".validate": "newData.isNumber()"
+     },
+     "rtB": {
+      ".write": "auth!=null&&root.child('ss/requests').child($rid).child('from').val()===auth.uid&&!data.exists()",
+      ".validate": "newData.isNumber()"
+     },
+     "cxB": {
+      ".write": "auth!=null&&root.child('ss/requests').child($rid).child('from').val()===auth.uid&&!data.exists()",
+      ".validate": "newData.isNumber()"
+     },
+     "rtgL": {
+      ".write": "auth!=null&&root.child('ss/requests').child($rid).child('to').val()===auth.uid&&!data.exists()&&root.child('ss/requests').child($rid).child('rtL').exists()&&root.child('ss/requests').child($rid).child('rtB').exists()",
+      ".validate": "newData.child('s').isNumber()&&newData.child('s').val()>=1&&newData.child('s').val()<=5&&newData.child('s').val()%1===0&&(!newData.child('n').exists()||(newData.child('n').isString()&&newData.child('n').val().length<=120))"
+     },
+     "rtgB": {
+      ".write": "auth!=null&&root.child('ss/requests').child($rid).child('from').val()===auth.uid&&!data.exists()&&root.child('ss/requests').child($rid).child('rtL').exists()&&root.child('ss/requests').child($rid).child('rtB').exists()",
+      ".validate": "newData.child('s').isNumber()&&newData.child('s').val()>=1&&newData.child('s').val()<=5&&newData.child('s').val()%1===0&&(!newData.child('n').exists()||(newData.child('n').isString()&&newData.child('n').val().length<=120))"
+     },
+     "prob": {
+      ".write": "auth!=null&&(root.child('ss/requests').child($rid).child('from').val()===auth.uid||root.child('ss/requests').child($rid).child('to').val()===auth.uid)&&!data.exists()",
+      ".validate": "newData.hasChildren(['k','ts','by'])&&newData.child('by').val()===auth.uid&&newData.child('k').val().matches(/^(damaged|lost|late|other)$/)&&newData.child('ts').isNumber()&&(!newData.child('n').exists()||(newData.child('n').isString()&&newData.child('n').val().length<=300))"
+     },
+     "meet": {
+      ".write": "auth!=null&&(root.child('ss/requests').child($rid).child('from').val()===auth.uid||root.child('ss/requests').child($rid).child('to').val()===auth.uid)",
+      ".validate": "newData.hasChildren(['pl','by','ts'])&&newData.child('by').val()===auth.uid&&newData.child('pl').isString()&&newData.child('pl').val().length<=60&&(!newData.child('at').exists()||(newData.child('at').isString()&&newData.child('at').val().length<=40))"
+     },
+     "meetOk": {
+      ".write": "auth!=null&&(root.child('ss/requests').child($rid).child('from').val()===auth.uid||root.child('ss/requests').child($rid).child('to').val()===auth.uid)&&root.child('ss/requests').child($rid).child('meet/by').val()!==auth.uid",
+      ".validate": "newData.isNumber()&&newData.val()==root.child('ss/requests').child($rid).child('meet/ts').val()"
+     },
+     "lm": {
+      ".write": "auth!=null&&(root.child('ss/requests').child($rid).child('from').val()===auth.uid||root.child('ss/requests').child($rid).child('to').val()===auth.uid)",
+      ".validate": "newData.child('by').val()===auth.uid&&newData.child('ts').isNumber()"
+     }
+    }
+   },
+   "thoughts": {
+    "$tid": {
+     ".write": "auth!=null&&(data.exists()?data.child('uid').val()===auth.uid:newData.child('uid').val()===auth.uid)",
+     ".validate": "newData.hasChildren(['uid','txt'])&&newData.child('who').val()===root.child('ss/users').child(auth.uid).child('name').val()&&newData.child('txt').val().length<=400",
+     "likes": {
+      "$u": {
+       ".write": "auth!=null&&auth.uid===$u"
+      }
+     },
+     "replies": {
+      "$r": {
+       ".write": "auth!=null&&(data.exists()?data.child('uid').val()===auth.uid:newData.child('uid').val()===auth.uid)",
+       ".validate": "newData.hasChildren(['uid','txt'])&&newData.child('who').val()===root.child('ss/users').child(auth.uid).child('name').val()&&newData.child('txt').val().length<=500"
+      }
+     }
+    }
+   },
+   "clubs": {
+    "$cid": {
+     ".write": "auth!=null&&!data.exists()",
+     ".validate": "newData.hasChildren(['name'])&&newData.child('name').val().length<=60",
+     "members": {
+      "$u": {
+       ".write": "auth!=null&&auth.uid===$u"
+      }
+     }
+    }
+   },
+   "clubmsgs": {
+    "$cid": {
+     "$mid": {
+      ".write": "auth!=null&&!data.exists()&&(newData.child('uid').val()===auth.uid||(newData.child('uid').val()==='sys'&&$mid==='m1'))",
+      ".validate": "newData.hasChildren(['uid','txt'])&&newData.child('txt').val().length<=300&&(newData.child('uid').val()==='sys'||newData.child('who').val()===root.child('ss/users').child(auth.uid).child('name').val())"
+     }
+    }
+   },
+   "covers": {
+    "$k": {
+     ".write": "auth!=null&&!data.exists()",
+     ".validate": "newData.isString()&&newData.val().length<=300&&newData.val().matches(/^https:.*/)"
+    }
+   }
+  },
+  "msgs": {
+   "$rid": {
+    ".read": "auth!=null&&(root.child('ss/requests').child($rid).child('from').val()===auth.uid||root.child('ss/requests').child($rid).child('to').val()===auth.uid)",
+    "$mid": {
+     ".write": "auth!=null&&!data.exists()&&(root.child('ss/requests').child($rid).child('from').val()===auth.uid||root.child('ss/requests').child($rid).child('to').val()===auth.uid)&&newData.child('uid').val()===auth.uid",
+     ".validate": "newData.hasChildren(['uid','txt','ts'])&&newData.child('txt').isString()&&newData.child('txt').val().length<=500&&newData.child('txt').val().length>0&&newData.child('who').val()===root.child('ss/users').child(auth.uid).child('name').val()&&(!newData.child('k').exists()||newData.child('k').val()==='meet')"
+    }
+   }
   }
+ }
 }
